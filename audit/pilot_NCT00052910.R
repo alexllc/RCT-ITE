@@ -11,7 +11,7 @@ library(timereg)
 library(ggfortify) # plotting KM
 library(pseudo)
 
-df <- read.csv("/home/alex/Documents/lab/ctci/dat/PDS/Multiple_Allianc_2002_213_NCT00052910_esophageal/NCT00052910_D1_(EFFICACY).csv")
+df <- read.csv("/home/alex/Documents/lab/RCT-ITE/dat/PDS/Multiple_Allianc_2002_213_NCT00052910/NCT00052910_D1_(EFFICACY).csv")
 # univaraite KM anaylsis of arm I vs arm II
 fit <- survfit(Surv(os_year, death_final) ~ TREAT_ASSIGNED, data = df)
 autoplot(fit)
