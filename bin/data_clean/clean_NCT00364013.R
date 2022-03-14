@@ -2,31 +2,6 @@ library(dplyr)
 library(impute)
 library(tidyr)
 
-cat2num <- function(df, verbose = TRUE) {
-    col_class <- unlist(lapply(df, function(X) class(X)))
-    cat_col <- which(col_class == "character")
-    ddt <- data.frame(cat_variable = cbind(names(cat_col)), cat_levels = seq_along(cat_col))
-    i <- 1
-    for (cat_indx in cat_col) {
-        factor_col <- as.factor(df[,cat_indx])
-        save_lv <- sapply(levels(factor_col), function(X) gsub("$", "=", X))
-        df[,cat_indx] <- as.numeric(factor_col)
-        ddt[i, 2] <- paste0(apply(rbind(save_lv, seq_along(save_lv)), 2, function(X) paste0(X, collapse = "")), collapse = "|")
-        i <- i+1
-    }
-    return(list(df, ddt))
-}
-
-scaleNimpute <- function(df) {
-    df <- scale(df, center = TRUE, scale = TRUE)
-    df <- knn
-    df <- t(apply(df, 1, function(r) r * attr(df,'scaled:scale') + attr(df, 'scaled:center')))
-}
-
-hdf <- function(df, n = 5){
-    print(head(as.data.frame(df), n = n))
-}
-
 adsl <- read.csv("/home/alex/Documents/lab/RCT-ITE/dat/PDS/Colorec_Amgen_2006_309_NCT00364013/csv/adsl_pds2019.csv")
 
 # check if assigned trt is the same as actual trt

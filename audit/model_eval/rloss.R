@@ -17,14 +17,16 @@ rloss <- function(tau.pred = NULL, Y = NULL, W = NULL, Y.hat = NULL, prob = NULL
     return(list(nnls_coeff = learn_coeff, debiased_tau = debiased_tau, mse_debiased = mse_debiased, mse = mse))
 }
 
+
 ##################################################
 # Fit various ITE mdoels and calculate R-loss
 ##################################################
 
+
 # change names from source data
 X <- as.matrix(X)
 Y <- efron_tail
-W <- W
+W <- tx
 
 prob <- 0.5 # randomized experiment
 
@@ -43,8 +45,8 @@ Y.hat.lasso <- Y.lasso$fit.preval[,!is.na(colSums(Y.lasso$fit.preval))]
 Y.hat.lasso <- Y.hat.lasso[, Y.lasso$lambda == Y.lasso$lambda.min]
 
 print(round(c(RMSE(Y.hat.boost, Y), RMSE(Y.hat.lasso, Y)), 4))
-# lasso had a smaller CV error
-Y.hat <- Y.hat.lasso
+# boosting had a smaller CV error
+Y.hat <- Y.hat.boost
 
 #
 # Causal forest
@@ -164,9 +166,9 @@ tau.stack = stack[2] +
     stack[4] * tau_cb_pred +
     stack[5] * tau_cm_pred +
     stack[6] * tau_ptof_pred +
-    stack[7] * tau_xb_pred
-    stack[8] * x_bart_tau
-    stack[9] * x_rf_tau
+    stack[7] * tau_xb_pred + 
+    stack[8] * x_bart_tau +
+    stack[9] * x_rf_tau +
     stack[10] * rb_tau
 
 mean((Y - Y.hat - tau.stack * (W - prob))^2)

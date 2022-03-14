@@ -1,7 +1,6 @@
-library(KMsurv)
-
-
-# original
+# Implementation of Datta's method of imputing mean life-time survival length in censored data
+# Reference: Datta, S. (2005). Estimating the mean life time using right censored data. Statistical Methodology, 2(1), 65–69. https://doi.org/10.1016/j.stamet.2004.11.003
+# https://www.sciencedirect.com/science/article/pii/S1572312704000309
 
 # Functions for survival imputation of patient clinical data
 
