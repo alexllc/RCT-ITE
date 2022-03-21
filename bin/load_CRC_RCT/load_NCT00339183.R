@@ -1,8 +1,8 @@
-source("/home/alex/Documents/lab/RCT-ITE/bin/impute_survival.R")
+source("./bin/impute_survival.R")
 
 
-corevar <- read.csv("/home/alex/Documents/lab/RCT-ITE/dat/PDS/Colorec_Amgen_2006_263_NCT00339183/csv/corevar.csv")
-eendpt <- read.csv("/home/alex/Documents/lab/RCT-ITE/dat/PDS/Colorec_Amgen_2006_263_NCT00339183/csv/a_eendpt.csv")
+corevar <- read.csv("./dat/PDS/Colorec_Amgen_2006_263_NCT00339183/csv/corevar.csv")
+eendpt <- read.csv("./dat/PDS/Colorec_Amgen_2006_263_NCT00339183/csv/a_eendpt.csv")
 
 corevar[corevar == "" | corevar == "NA"] <- NA
 

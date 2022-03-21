@@ -1,4 +1,3 @@
-library(hettx)
 
 source("./audit/model_eval/load_lib.R")
 

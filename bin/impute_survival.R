@@ -1,8 +1,7 @@
-source("/home/alex/Documents/lab/RCT-ITE/audit/model_eval/load_lib.R")
 
 impute_survival <- function(T = NULL, C = NULL, X = NULL) {
     # 1. Efron's tail correction
-    source("/home/alex/Documents/lab/RCT-ITE/audit/datta_surv_imp.R")
+    source("./audit/datta_surv_imp.R")
     efron_tail <- exp(impute.survival(surv.time = T, censor = C)) # no need to convert to log scale
 
     # 2. Imputed tail correction (Khan & Shaw)

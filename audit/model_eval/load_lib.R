@@ -21,10 +21,6 @@ library(nnls)
 
 library(caret) # cross validation
 
-# Various causal inference framework
-library(causalLearning)
-library(causalToolbox)
-
 # Find HTE
 library(hettx)
 

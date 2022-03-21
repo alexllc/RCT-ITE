@@ -1,8 +1,8 @@
-# Function to find the best tau predictor using R-loss criteria
-find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4) {
+# Function to find the best tau predictor using R-loss criteria averaging over several folds
+find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE) {
 
     # For testing only:
-    source("/home/alex/Documents/lab/RCT-ITE/bin/load_CRC_RCT/load_NCT00339183.R")
+    source("./bin/load_CRC_RCT/load_NCT00339183.R")
     X <- as.matrix(NCT00339183[[1]])
     Y <- NCT00339183[[2]][[1]]
     W <- NCT00339183[[3]]
@@ -25,7 +25,7 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
 
     # let's first fit cvlasso or cv boosting to estimate nuisance component marginal response model (m.hat)
 
-    Y.boost <- cvboost(train_X, train_Y, objective = "reg:squarederror", nthread = 8) # non-binary outcome
+    Y.boost <- cvboost(train_X, train_Y, objective = "reg:squarederror", nthread = 40) # non-binary outcome
     Y.hat.boost <- predict(Y.boost, newx = ho_X)
 
     Y.lasso <- cv.glmnet(train_X, train_Y, keep = TRUE, family = "gaussian")
@@ -44,9 +44,9 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     #
 
     # R-loss already implemented by the package and is contained in the debiased.error column in predict.causal_forest(). You can obtain MSE by mean(cf$debiased.error), the values were already squared.
-    # since causal trees are honest already, there's no need to futher split into k-fold estimation
+    # since causal trees are honest already, there's no need to further split into k-fold estimation
 
-    cf <- causal_forest(train_X, train_Y, train_W)
+    cf <- causal_forest(train_X, train_Y, train_W, num.trees = 100000, tune.parameters = "all")
     cf_tau_pred <- predict(cf, newdata = ho_X, estimate.variance =  TRUE)
 
     cf_mse <- mean((ho_Y - Y.hat - cf_tau_pred$predictions * (ho_W - prob))^2)
@@ -59,13 +59,20 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     # Powers: CausalBoost, CausalMARS, PTOForest
     ##################################################
 
+    if(tuned_cb_param) {
+        param_list <- read.csv("./dat/NCT00339183_cb_param.csv")
+        param_list <- param_list[which(param_list$mean_cvm_effect == min(param_list$mean_cvm_effect)),]
+        param_list <- list(num.trees = param_list$num_trees_min_effect, maxleaves = param_list$max_leaves, eps = param_list$eps, splitSpread = param_list$split_spread)
+    } else { # use default setting
+        param_list <- list(num.trees = 500, maxleaves = 4, eps = 0.01, splitSpread = 0.1)
+    }
     # now we estimate tau from CausalBoosting
+    
+    cb <- do.call(causalBoosting, append(list(x = train_X, tx = train_W, y = train_Y), as.list(param_list)))
+    tau_cb_pred <- predict(cb, newx = ho_X)
+    tau_cb_pred <- tau_cb_pred[,param_list$num.trees] # choose the prediction given by the maximum number of trees used   
 
-    cb <- causalBoosting(x = train_X, tx = train_W, y = train_Y, num.trees = dim(train_X)[1]) # needs hyperparameter tuning
-    min_y_err <- cb$err.y[which(cb$err.y == min(cb$err.y))]
-    tau_cb_pred <- cb$tauhat[,which(cb$err.y == min(cb$err.y))] # choosing tau that has the minimum y.err
-
-    cb_rloss_res <- rloss(tau.pred = tau_cb_pred, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    cb_rloss_res <- rloss(tau.pred = tau_cb_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(cb_rloss_res$nnls_coeff, cb_rloss_res$mse, cb_rloss_res$mse_debiased))
 
 
