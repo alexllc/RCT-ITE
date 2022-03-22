@@ -1,3 +1,8 @@
+source("./bin/load_lib.R")
+source("./bin/hyperparameter_tuning.R")
+source("./bin/mod_PTOforest.R")
+source("./bin/mod_causalboost.R")
+
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
 find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE) {
 
@@ -48,6 +53,10 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
 
     cf <- causal_forest(train_X, train_Y, train_W, num.trees = 100000, tune.parameters = "all")
     cf_tau_pred <- predict(cf, newdata = ho_X, estimate.variance =  TRUE)
+    while (var(cf_tau_pred$predictions) == 0) { # tuned forests sometimes give equal predictions, if that's the case, rebuild forest
+        cf <- causal_forest(train_X, train_Y, train_W, num.trees = 100000, tune.parameters = "all")
+        cf_tau_pred <- predict(cf, newdata = ho_X, estimate.variance =  TRUE)
+    }
 
     cf_mse <- mean((ho_Y - Y.hat - cf_tau_pred$predictions * (ho_W - prob))^2)
     cf_rloss_res <- rloss(tau.pred = cf_tau_pred$predictions, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
@@ -60,38 +69,67 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     ##################################################
 
     if(tuned_cb_param) {
-        param_list <- read.csv("./dat/NCT00339183_cb_param.csv")
-        param_list <- param_list[which(param_list$mean_cvm_effect == min(param_list$mean_cvm_effect)),]
-        param_list <- list(num.trees = param_list$num_trees_min_effect, maxleaves = param_list$max_leaves, eps = param_list$eps, splitSpread = param_list$split_spread)
+        cb_param <- read.csv("./dat/NCT00339183_cb_param.csv")
+        cb_param <- cb_param[which(cb_param$mean_cvm_effect == min(cb_param$mean_cvm_effect)),]
+        cb_param <- list(num.trees = cb_param$num_trees_min_effect, maxleaves = cb_param$max_leaves, eps = cb_param$eps, splitSpread = cb_param$split_spread)
     } else { # use default setting
-        param_list <- list(num.trees = 500, maxleaves = 4, eps = 0.01, splitSpread = 0.1)
+        cb_param <- list(num.trees = 500, maxleaves = 4, eps = 0.01, splitSpread = 0.1)
     }
     # now we estimate tau from CausalBoosting
     
-    cb <- do.call(causalBoosting, append(list(x = train_X, tx = train_W, y = train_Y), as.list(param_list)))
-    tau_cb_pred <- predict(cb, newx = ho_X)
-    tau_cb_pred <- tau_cb_pred[,param_list$num.trees] # choose the prediction given by the maximum number of trees used   
+    cb <- do.call(causalBoosting, append(list(x = train_X, tx = train_W, y = train_Y), as.list(cb_param)))
+    cb_tau_pred <- predict(cb, newx = ho_X)
+    cb_tau_pred <- tau_cb_pred[,cb_param$num.trees] # choose the prediction given by the maximum number of trees used   
 
-    cb_rloss_res <- rloss(tau.pred = tau_cb_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
+    cb_rloss_res <- rloss(tau.pred = cb_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(cb_rloss_res$nnls_coeff, cb_rloss_res$mse, cb_rloss_res$mse_debiased))
 
 
     #
     # CausalMARS
     #
+    if (tuned_cm_param){
+        cm_param <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+        cm_param_used <- as.list(cm_param[1,1:3]) # choose smallest first
+        cm <- try(do.call(causalMARS, append(list(x = train_X, tx = train_W, y = train_Y), cm_param_used)))
+        tau_cm_pred <- try(predict(cm, ho_X))
 
-    cm <- causalMARS(x = X, tx = W, y = Y)
-    tau_cm_pred <- predict(cm, X)
-    cm_rloss_pred <- rloss(tau.pred = tau_cm_pred, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+        param_counter <- 1
+        while( class(cm) == "try-error" | class(tau_cm_pred) == "try-error") { # sometimes you still get singular matricies for the tuned parameters, so tune it until it can fit a CM model. The param_counter determines when you should stop trying
+            cm_param_used <- as.list(cm_param[param_counter + 1, 1:3]) # choose the next best param set
+            cm <- try(do.call(causalMARS, append(list(x = train_X, tx = train_W, y = train_Y), cm_param_used)))
+            tau_cm_pred <- try(predict(cm, ho_X))
+            param_counter <- param_counter + 1
+
+            # re-evaluate parameters if too many of the tested parameters failed
+            if(param_counter > ceiling(dim(cm_param)[1] * 0.1)) { 
+                cm_param <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+                param_counter <- 0
+            }
+        }
+
+    } else {
+        cm <- causalMARS(x = X, tx = W, y = Y)
+    }
+
+    cm_rloss_pred <- rloss(tau.pred = tau_cm_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(cm_rloss_pred$nnls_coeff, cm_rloss_pred$mse, cm_rloss_pred$mse_debiased))
 
 
     #
     # PTOForest
     #
-    ptof <- PTOforest(x = X, tx = W, y = Y)
-    tau_ptof_pred <- predict(ptof, X)
-    ptof_rloss_pred <- rloss(tau.pred = tau_ptof_pred, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    if (tune_ptof_param) {
+        ptof_param_search <- find_ptof_param(x = train_X, y = train_Y, tx = train_W, validation_fold = 4, num_search_rounds = 50)
+        ptof_param <- ptof_param_search[1, 1:3]
+        ptof_param <- list(num.trees = ptof_param$num_trees, mtry = ptof_param$mtry, min.node.size = ptof_param$min_node_size)
+        ptof <- do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = TRUE, verbose = TRUE), ptof_param))
+    } else {
+        ptof <- PTOforest(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+
+    }
+    ptof_tau_pred <- predict(ptof, ho_X)
+    ptof_rloss_pred <- rloss(tau.pred = ptof_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(ptof_rloss_pred$nnls_coeff, ptof_rloss_pred$mse, ptof_rloss_pred$mse_debiased))
 
 
@@ -99,22 +137,22 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     ##################################################
     # X-learner
     ##################################################
-    xb <- xboost(x = X, w = W, y = Y)
-    tau_xb_pred <- predict(xb, X)
+    xb <- xboost(x = train_X, w = train_W, y = train_Y, verbose = TRUE)
+    xb_tau_pred <- predict(xb, ho_X)
 
-    xb_rloss <- rloss(tau.pred = tau_xb_pred, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    xb_rloss <- rloss(tau.pred = xb_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(xb_rloss$nnls_coeff, xb_rloss$mse, xb_rloss$mse_debiased))
 
 
     x_rf <- X_RF(feat = X, tr = W, yobs = Y)
     x_rf_tau <- EstimateCate(x_rf, X)
-    x_rf_rloss <- rloss(tau.pred = x_rf_tau, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    x_rf_rloss <- rloss(tau.pred = x_rf_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(x_rf_rloss$nnls_coeff, x_rf_rloss$mse, x_rf_rloss$mse_debiased))
 
 
     x_bart <- X_BART(feat = X, tr = W, yobs = Y)
     x_bart_tau <- EstimateCate(x_bart, X)
-    x_bart_rloss <- rloss(tau.pred = x_bart_tau, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    x_bart_rloss <- rloss(tau.pred = x_bart_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(x_bart_rloss$nnls_coeff, x_bart_rloss$mse, x_bart_rloss$mse_debiased))
 
 

@@ -1,6 +1,6 @@
+library(tidyr) # you should load tidyr before loading dplyr
 library(dplyr)
 library(impute)
-library(tidyr)
 
 # Survival analysis
 library(survival)
