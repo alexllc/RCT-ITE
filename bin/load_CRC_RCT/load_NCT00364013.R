@@ -1,7 +1,7 @@
 
-source("/home/alex/Documents/lab/RCT-ITE/bin/impute_survival.R")
+source("./bin/impute_survival.R")
 
-adsl <- read.csv("/home/alex/Documents/lab/RCT-ITE/dat/PDS/Colorec_Amgen_2006_309_NCT00364013/csv/adsl_pds2019.csv")
+adsl <- read.csv("./dat/PDS/Colorec_Amgen_2006_309_NCT00364013/csv/adsl_pds2019.csv")
 
 # check if assigned trt is the same as actual trt
 all(adsl$TRT==adsl$ATRT)

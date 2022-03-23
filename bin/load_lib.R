@@ -118,8 +118,13 @@ missing_too_much <- function(clin_df) {
     for(col in colnames(clin_df)) {
         missing_prop <- sum(is.na(clin_df[[col]])) / dim(clin_df)[1]
         if (missing_prop > 0.5) {
-            print(c("More than 50% missing data! Removing from df.: ", col))
+            print(pste0("More than 50% missing data! Removing from df.: ", col))
             clin_df[[col]] <- NULL
+        } else {
+            if(identical(clin_df[[col]], rep(clin_df[[col]][1], dim(clin_df)[1]))) {
+                print(paste0("All values are the same, removing: ", col))
+                clin_df[[col]] <- NULL
+            }
         }
     }
     return(clin_df)
