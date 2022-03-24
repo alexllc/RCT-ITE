@@ -47,4 +47,4 @@ X <- select(imp_clin_df, all_of(c("LIVERMET", "DIAGMONS", "AGE",  "SEX", "B_WEIG
 W <- adsl$ATRT
 Y_list <- impute_survival(T = imp_clin_df$PFS_mo, C = imp_clin_df$PFSCR, X = X)
 
-NCT00364013 <- list(X, W, Y_list)
+NCT00364013 <- list(X, Y_list, W)

@@ -3,14 +3,26 @@ source("./bin/hyperparameter_tuning.R")
 source("./bin/mod_PTOforest.R")
 source("./bin/mod_causalboost.R")
 
+prob = 0.5
+Q = 4
+tuned_cb_param = TRUE
+tuned_cm_param = TRUE
+tune_ptof_param = TRUE
+perform_xb = FALSE
+
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
-find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE) {
+find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, perform_xb = FALSE) {
 
     # For testing only:
-    source("./bin/load_CRC_RCT/load_NCT00339183.R")
-    X <- as.matrix(NCT00339183[[1]])
-    Y <- NCT00339183[[2]][[1]]
-    W <- NCT00339183[[3]]
+    # Done 
+    # NCT00339183, NCT00364013
+
+    trial <- "NCT00113763"
+    source(paste0("./bin/load_CRC_RCT/load_", trial, ".R"))
+    X <- as.matrix(get(trial)[[1]])
+    Y <- get(trial)[[2]][[1]]
+    W <- get(trial)[[3]]
+
 
     # set up empty dataframe
     compare_rloss <- data.frame(b = numeric(), c = numeric(), alpha = numeric(), mse = numeric(), debiased_mse = numeric())
@@ -70,6 +82,7 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
 
     if(tuned_cb_param) {
         cb_param <- read.csv("./dat/NCT00339183_cb_param.csv")
+        # cb_param <- find_cb_param(train_X, train_Y, train_W, num_search_rounds = 10)
         cb_param <- cb_param[which(cb_param$mean_cvm_effect == min(cb_param$mean_cvm_effect)),]
         cb_param <- list(num.trees = cb_param$num_trees_min_effect, maxleaves = cb_param$max_leaves, eps = cb_param$eps, splitSpread = cb_param$split_spread)
     } else { # use default setting
@@ -79,7 +92,7 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     
     cb <- do.call(causalBoosting, append(list(x = train_X, tx = train_W, y = train_Y), as.list(cb_param)))
     cb_tau_pred <- predict(cb, newx = ho_X)
-    cb_tau_pred <- tau_cb_pred[,cb_param$num.trees] # choose the prediction given by the maximum number of trees used   
+    cb_tau_pred <- cb_tau_pred[,cb_param$num.trees] # choose the prediction given by the maximum number of trees used   
 
     cb_rloss_res <- rloss(tau.pred = cb_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(cb_rloss_res$nnls_coeff, cb_rloss_res$mse, cb_rloss_res$mse_debiased))
@@ -89,8 +102,8 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     # CausalMARS
     #
     if (tuned_cm_param){
-        cm_param <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
-        cm_param_used <- as.list(cm_param[1,1:3]) # choose smallest first
+        cm_cv_performance <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+        cm_param_used <- as.list(cm_cv_performance[1,1:3]) # choose smallest first
         cm <- try(do.call(causalMARS, append(list(x = train_X, tx = train_W, y = train_Y), cm_param_used)))
         tau_cm_pred <- try(predict(cm, ho_X))
 
@@ -137,21 +150,25 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     ##################################################
     # X-learner
     ##################################################
-    xb <- xboost(x = train_X, w = train_W, y = train_Y, verbose = TRUE)
-    xb_tau_pred <- predict(xb, ho_X)
+    if (perform_xb) {
+        xb <- xboost(x = train_X, w = train_W, y = train_Y, verbose = TRUE)
+        xb_tau_pred <- predict(xb, ho_X)
+        xb_rloss <- rloss(tau.pred = xb_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
+        compare_rloss <- rbind(compare_rloss, c(xb_rloss$nnls_coeff, xb_rloss$mse, xb_rloss$mse_debiased))
+    } else {
+        xb_tau_pred <- rep(0, dim(ho_X)[1])
+        compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+    }
 
-    xb_rloss <- rloss(tau.pred = xb_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
-    compare_rloss <- rbind(compare_rloss, c(xb_rloss$nnls_coeff, xb_rloss$mse, xb_rloss$mse_debiased))
 
-
-    x_rf <- X_RF(feat = X, tr = W, yobs = Y)
-    x_rf_tau <- EstimateCate(x_rf, X)
+    x_rf <- X_RF(feat = train_X, tr = train_W, yobs = train_Y)
+    x_rf_tau <- EstimateCate(x_rf, ho_X)
     x_rf_rloss <- rloss(tau.pred = x_rf_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(x_rf_rloss$nnls_coeff, x_rf_rloss$mse, x_rf_rloss$mse_debiased))
 
 
-    x_bart <- X_BART(feat = X, tr = W, yobs = Y)
-    x_bart_tau <- EstimateCate(x_bart, X)
+    x_bart <- X_BART(feat = train_X, tr = train_W, yobs = train_Y)
+    x_bart_tau <- EstimateCate(x_bart, ho_X)
     x_bart_rloss <- rloss(tau.pred = x_bart_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(x_bart_rloss$nnls_coeff, x_bart_rloss$mse, x_bart_rloss$mse_debiased))
 
@@ -159,64 +176,92 @@ find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q 
     ##################################################
     # R-learner
     ##################################################
-    rb <- rboost(X, W, Y, p_hat = prob, m_hat = Y.hat, nthread = 4)
-    rb_tau <- predict(rb)
 
-    rl <- rlasso(X, W, Y, p_hat = prob, m_hat = Y.hat)
-    rl_tau <- predict(rl)
+    train_Y_hat_boost <- predict(Y.boost)
 
-    print(round(c(mean((Y - Y.hat - rb_tau * (W - prob))^2), mean((Y - Y.hat - rl_tau * (W - prob))^2)), 4)) # boosting wins
+    train_Y_hat_lasso <- predict(Y.lasso, newx = train_X)[,1]
 
-    rb_rloss <- rloss(tau.pred = rb_tau, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    # which method has a smaller CV error?
+    print(round(c(RMSE(train_Y_hat_boost, train_Y), RMSE(train_Y_hat_lasso, train_Y)), 4))
+    
+    if( RMSE(train_Y_hat_boost, train_Y) < RMSE(train_Y_hat_boost, train_Y) ) {
+        train_Y_hat <- train_Y_hat_boost
+    } else {
+        train_Y_hat <- train_Y_hat_lasso
+    }
+
+    rb <- rboost(train_X, train_W, train_Y, p_hat = prob, m_hat = train_Y_hat, nthread = 40)
+    rb_tau <- predict(rb, ho_X)
+    rb_rloss <- rloss(tau.pred = rb_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(rb_rloss$nnls_coeff, rb_rloss$mse, rb_rloss$mse_debiased))
 
+    rl <- rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = train_Y_hat)
+    rl_tau <- predict(rl, ho_X)[,1]
+    rl_rloss <- try(rloss(tau.pred = rl_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob))
+    if (class(rl_rloss) == "try-error") {
+        rl_tau <- rep(0, dim(ho_X)[1])
+        compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+    } else {
+        compare_rloss <- rbind(compare_rloss, c(rl_rloss$nnls_coeff, rl_rloss$mse, rl_rloss$mse_debiased))
+    }
+
+    print(round(c(mean((train_Y - train_Y_hat - rb_tau * (train_W - prob))^2), mean((train_Y - train_Y_hat - rl_tau * (train_W - prob))^2)), 4)) # boosting wins
+
+
     # RS learner
-    rl_RS <- rlasso(X, W, Y, p_hat = prob, m_hat = Y.hat, rs = TRUE) # returned same predictions for all patients
-    rl_RS_tau <- predict(rl_RS)[,1]
-    rs_rloss <- rloss(tau.pred = rl_RS_tau, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
-    # do not include
+    rl_RS <- rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = train_Y_hat, rs = TRUE) # returned same predictions for all patients
+    rl_RS_tau <- predict(rl_RS, ho_X)[,1]
+    rs_rloss <- try(rloss(tau.pred = rl_RS_tau, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob))
+    if (class(rs_rloss) == "try-error") {
+        rl_RS_tau <- rep(0, dim(ho_X)[1])
+        compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+    } else {
+        compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+    }
 
     ##################################################
     # R-stack
     ##################################################
 
-    RESP = Y - Y.hat
-    R.mat <- cbind(1, W - prob,
-                    (W - prob) * cf_tau_pred$predictions,
-                    (W - prob) * tau_cb_pred,
-                    (W - prob) * tau_cm_pred,
-                    (W - prob) * tau_ptof_pred,
-                    (W - prob) * tau_xb_pred,
-                    (W - prob) * x_bart_tau,
-                    (W - prob) * x_rf_tau,
-                    (W - prob) * rb_tau
+    RESP = train_Y - Y.hat
+    R.mat <- cbind(1, train_W - prob,
+                    (train_W - prob) * cf_tau_pred$predictions,
+                    (train_W - prob) * cb_tau_pred,
+                    (train_W - prob) * tau_cm_pred,
+                    (train_W - prob) * ptof_tau_pred,
+                    # (train_W - prob) * xb_tau_pred,
+                    (train_W - prob) * x_bart_tau,
+                    (train_W - prob) * x_rf_tau,
+                    (train_W - prob) * rb_tau
+                    # (train_W - prob) * rl_tau
+                    # (train_W - prob) * rl_RS_tau
                     )
 
-    stack = nnls(as.matrix(R.mat), RESP, constrained = c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE))
+    stack = nnls(as.matrix(R.mat), RESP, constrained = c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,  TRUE))
     print("coefs")
     print(stack)
 
     tau.stack = stack[2] +
         stack[3] * cf_tau_pred$predictions +
-        stack[4] * tau_cb_pred +
+        stack[4] * cb_tau_pred +
         stack[5] * tau_cm_pred +
-        stack[6] * tau_ptof_pred +
-        stack[7] * tau_xb_pred + 
-        stack[8] * x_bart_tau +
-        stack[9] * x_rf_tau +
-        stack[10] * rb_tau
+        stack[6] * ptof_tau_pred +
+        # stack[7] * tau_xb_pred + 
+        stack[7] * x_bart_tau +
+        stack[8] * x_rf_tau +
+        stack[9] * rb_tau
 
-    mean((Y - Y.hat - tau.stack * (W - prob))^2)
+    mean((train_Y - train_Y_hat - tau.stack * (train_W - prob))^2)
 
-    tau_stack_rloss <- rloss(tau.pred = tau.stack, Y = Y, W = W, Y.hat = Y.hat, prob = prob)
+    tau_stack_rloss <- rloss(tau.pred = tau.stack, Y = ho_Y, W = ho_W, Y.hat = Y.hat, prob = prob)
     compare_rloss <- rbind(compare_rloss, c(tau_stack_rloss$nnls_coeff, tau_stack_rloss$mse, tau_stack_rloss$mse_debiased))
 
 
     # reformat comparison table
-    method_list <- c("CF", "CBoost", "CMARS", "PTOForest", "XBoosting", "XBART", "XRF", "RBoosting", "stack")
+    method_list <- c("CF", "CBoost", "CMARS", "PTOForest", "XBoosting", "XRF", "XBART", "RBoosting", "RLasso", "RSlearner", "stack")
     rownames(compare_rloss) <- method_list
     colnames(compare_rloss) <- c("b", "c", "alpha", "mse", "mse_debiased")
 
-    write.csv(compare_rloss, "./res/NCT00364013_model_sel_res.csv", row.names = TRUE)
+    write.csv(compare_rloss, paste0("./res/", trial, "_model_sel_res.csv"), row.names = TRUE)
 
 }

@@ -38,4 +38,4 @@ Y_list <- impute_survival(T = adsl$PFSDYCR / 30.4167, C = adsl$PFSCR, X = X_imp)
 W <- as.numeric(adsl$ATRT == "panit. plus best supportive care")
 print(table(W))
 
-NCT00113763 <- list(X, W, Y_list)
+NCT00113763 <- list(X_imp, Y_list, W)

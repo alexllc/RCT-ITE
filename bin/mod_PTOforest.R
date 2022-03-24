@@ -5,8 +5,7 @@ cv.PTOforest <- function(x, tx, y,
                         pscore = rep(.5, nrow(x)), 
                         num.trees = NULL, 
                         mtry = NULL, 
-                        min.node.size = NULL, 
-                        alpha = NULL,
+                        min.node.size = NULL,
                         postprocess = TRUE, verbose = FALSE) {
 
     # Input sanitization
@@ -55,7 +54,6 @@ cv.PTOforest <- function(x, tx, y,
                     num.trees = num.trees, 
                     min.node.size = min.node.size, 
                     mtry = mtry,
-                    alpha = alpha,
                     write.forest = TRUE)
 
     cv_z_pred <- stats::predict(TOfit, ho_x)[["predictions"]]

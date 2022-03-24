@@ -65,8 +65,8 @@ find_cm_param <- function(x = NULL, y = NULL, tx = NULL, validation_fold = 4, nu
             cv_performance <- rbind(cv_performance, unlist(append(gen_param, sum(fit$rsstesthat))))
         }
     }
-    cv_performance <- cv_performance[order(cv_performance$sum_rsstesthat, decreasing = FALSE),]
     colnames(cv_performance) = c("maxterms", "eps", "degree", "sum_rsstesthat")
+    cv_performance <- cv_performance[order(cv_performance$sum_rsstesthat, decreasing = FALSE),]
     return(cv_performance) # return params that lead to smallest vaildation RSS
 }
 
@@ -88,5 +88,6 @@ find_ptof_param <- function(x = NULL, y = NULL, tx = NULL, validation_fold = 4, 
     }
     colnames(ptof_cv_performance) <- c("num_trees", "mtry", "min_node_size", "mean_Z_cv_error")
     ptof_cv_performance <- ptof_cv_performance[order(ptof_cv_performance$mean_Z_cv_error),]
+    
     return(ptof_cv_performance)
 }
