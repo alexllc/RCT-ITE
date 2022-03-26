@@ -31,4 +31,4 @@ X_imp <- impute_df_missing(clin_df = X, save_ddt = FALSE)
 
 Y_list <- impute_survival(T = rand_obj$dfstime5 / 30.4167, C = rand_obj$dfsstat5, X = X_imp)
 
-NCT00079274<- list(X, W, Y_list)
+NCT00079274<- list(X_imp, Y_list, W)
