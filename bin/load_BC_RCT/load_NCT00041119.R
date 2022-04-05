@@ -1,0 +1,32 @@
+source("./bin/load_lib.R")
+source("./bin/impute_survival.R")
+
+file_path <- "./dat/PDS/Breast_Allianc_2002_194_NCT00041119/csv/"
+
+eval <- read.csv(paste0(file_path, "eval46_3_finala.csv"))
+
+# set to NA in R language for any type of missing or not otherwise specified entries
+missing_indicators <- c("", "NA", "98", 98, "99", 99)
+for (missing in missing_indicators) {
+    eval[eval == missing] <- NA
+}
+
+X <- dplyr::select(eval, all_of(c("RACE_ID", "stra1", "stra2", "OH002", "OH003", "OH004", "OH005", "OH006", "OH011", "OH012", "OH013", "OH014", "OH016", "OH027", "OH028", "OH032", "OH036", "OH037", "num_pos_nodes", "tsize", "agecat")))
+
+X <- missing_too_much(X)
+X_imp <- impute_df_missing(clin_df = X, save_ddt = FALSE)
+
+if (exists("tx_mode")) {
+    if(tx_mode == chemo_type) {
+        W <- as.numeric(eval$indrx == 3 | eval$indrx == 4)
+    } else if(tx_mode == cycle_length) {
+        W <- as.numeric(eval$indrx == 2 | eval$indrx == 4)
+    } else {
+        message("You must provide the correct treatment model (chemo_type or cycle_length) for 2x2 factorial trial.")
+    }
+} else {
+    message("You must provide the treatment mode!")
+}
+
+Y_list <- impute_survival(T = eval$dfsmos, C = eval$dfsstat, X = X_imp)
+

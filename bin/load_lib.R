@@ -121,7 +121,7 @@ missing_too_much <- function(clin_df) {
             print(paste0("More than 50% missing data! Removing from df.: ", col))
             clin_df[[col]] <- NULL
         } else {
-            if(identical(clin_df[[col]], rep(clin_df[[col]][1], dim(clin_df)[1]))) {
+            if(var(clin_df[[col]], na.rm = TRUE) == 0) {
                 print(paste0("All values are the same, removing: ", col))
                 clin_df[[col]] <- NULL
             }
