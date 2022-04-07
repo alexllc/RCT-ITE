@@ -100,12 +100,14 @@ impute_df_missing  <- function(clin_df = NULL, save_ddt = FALSE) {
         pre_proc <- scale(num_clin_df, center = TRUE, scale = TRUE)
         imp_clin_df <- impute.knn(pre_proc, k=10)
         message(c("Seed used: ", imp_clin_df$rng.seed))
-        imp_clin_df <- t(apply(imp_clin_df$data, 1, function(r) r *attr(imp_clin_df$data,'scaled:scale') + attr(imp_clin_df$data, 'scaled:center')))
+        for (i in 1:dim(imp_clin_df$data)[2]) {
+            imp_clin_df$data[,i] <- imp_clin_df$data[,i] * attr(pre_proc, "scaled:scale")[i] +  attr(pre_proc, "scaled:center")[i]
+        }
     }
 
     # check if KNN imputation is successful
-    message("Is there still missing data? ", any(is.na(imp_clin_df)))
-    imp_clin_df <- as.data.frame(imp_clin_df)
+    message("Is there still missing data? ", any(is.na(imp_clin_df$data)))
+    imp_clin_df <- as.data.frame(imp_clin_df$data)
 
     if(save_ddt)
         return(list(imp_clin_df, num_clin_df))
@@ -120,12 +122,11 @@ missing_too_much <- function(clin_df) {
         if (missing_prop > 0.5) {
             print(paste0("More than 50% missing data! Removing from df.: ", col))
             clin_df[[col]] <- NULL
-        } else {
-            if(var(clin_df[[col]], na.rm = TRUE) == 0) {
+        } else if(var(clin_df[[col]], na.rm = TRUE) == 0) {
                 print(paste0("All values are the same, removing: ", col))
                 clin_df[[col]] <- NULL
-            }
         }
     }
+
     return(clin_df)
 }
