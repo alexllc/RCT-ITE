@@ -10,7 +10,10 @@ tuned_cm_param = TRUE
 tune_ptof_param = TRUE
 perform_xb = TRUE
 
-trial_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00079274")
+trial_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
+                "NCT00460265",
+                "NCT00041119_length", "NCT00041119_chemo",
+                "NCT00003299", "NCT00119613")
 
 
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
@@ -22,7 +25,7 @@ for (trial in trial_ls) {
     # NCT00339183, NCT00364013
 
 
-    source(paste0("./bin/load_CRC_RCT/load_", trial, ".R"))
+    source(paste0("./bin/load_RCT/load_", trial, ".R"))
     X <- as.matrix(get(trial)[[1]])
     Y <- get(trial)[[2]][[1]]
     W <- get(trial)[[3]]
@@ -295,7 +298,7 @@ for (trial in trial_ls) {
     print(stack)
 
     tau_stack <- stack[2]
-    for (i in 1:length(tau_ls)) {
+    for (i in 1:length(tau_ls)) { # nolint # nolint
         tau_stack <- tau_stack + stack[2 + i] * tau_ls[[i]]
     }
 

@@ -17,10 +17,7 @@ X <- missing_too_much(X)
 X_imp <- impute_df_missing(clin_df = X, save_ddt = FALSE)
 
 Y_list <- impute_survival(T = eval$dfsmos, C = eval$dfsstat, X = X_imp)
-chemo_W <- as.numeric(eval$indrx == 3 | eval$indrx == 4) # Experimental arm is: 3=T-4 or 4=T-6
+W <- as.numeric(eval$indrx == 3 | eval$indrx == 4) # Experimental arm is: 3=T-4 or 4=T-6
 
-NCT00041119_chemo <- list(X_imp, Y_list, chemo_W)
-
-length_W <- as.numeric(eval$indrx == 2 | eval$indrx == 4) # Experimental arm is: 2=CA-6 or 4=T-6
-NCT00041119_length <- list(X_imp, Y_list, length_W)
+NCT00041119_chemo <- list(X_imp, Y_list, W)
 

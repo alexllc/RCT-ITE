@@ -122,7 +122,7 @@ missing_too_much <- function(clin_df) {
         if (missing_prop > 0.5) {
             print(paste0("More than 50% missing data! Removing from df.: ", col))
             clin_df[[col]] <- NULL
-        } else if(var(clin_df[[col]], na.rm = TRUE) == 0) {
+        } else if(length(unique(na.omit(clin_df[[col]]))) == 1) {
                 print(paste0("All values are the same, removing: ", col))
                 clin_df[[col]] <- NULL
         }

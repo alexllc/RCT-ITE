@@ -10,7 +10,7 @@ find_cb_param <- function(x = NULL, y = NULL, tx = NULL, num_search_rounds = 5) 
     cv_performance <- data.frame()
     for(iter in 1:num_search_rounds) {
 
-        print(c("Number of search round: ", iter))
+        print(paste0("Number of search round: ", iter))
         gen_param <-  list(num.trees = sample(c(100, 200, 500, 1000, 5000), 1), 
                     maxleaves = sample(c(4, 5, 10), 1), 
                     eps = sample(c(5e-6, 5e-5, 1e-4, 5e-3, 1e-2), 1), 
