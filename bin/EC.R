@@ -1,1 +1,0 @@
-# list of prognosis functions that were used 

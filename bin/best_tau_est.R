@@ -8,8 +8,8 @@ Q = 4
 tuned_cb_param = FALSE
 tuned_cm_param = TRUE
 tune_ptof_param = TRUE
-perform_xb = TRUE
-
+perform_xb = FALSE
+# 
 trial_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
                 "NCT00460265",
                 "NCT00041119_length", "NCT00041119_chemo",
@@ -20,9 +20,7 @@ trial_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00
 # find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = TRUE) {
 
 for (trial in trial_ls) {
-    # For testing only:
-    # Done 
-    # NCT00339183, NCT00364013
+
 
     message(paste0(rep("=", 80)))
     message(paste0("Running trial: ", trial))
@@ -35,23 +33,25 @@ for (trial in trial_ls) {
 
 
     # set up empty dataframe
-    compare_rloss <- data.frame(b = numeric(), c = numeric(), alpha = numeric(), mse = numeric(), debiased_mse = numeric())
 
     # save tau predictions
-    tau_ls <- list()
 
     # We need to take out 1/Q sample as the holdout test data, the rest of the samples are used for training
 
     available_sample <- seq(1:dim(X)[1])
     for (iter in 1:Q) {
+        
+        tau_ls <- list()
+        compare_rloss <- data.frame(b = numeric(), c = numeric(), alpha = numeric(), mse = numeric(), debiased_mse = numeric())
 
         message(paste0(rep("=", 80)))
         message(paste0("CV iteration number: ", iter))
         message(paste0(rep("=", 80)))
-        if (iter == 1)
+        if (iter == 1) {
             holdout_sample <- read.csv(paste0("./dat/cb_param/", trial, "_holdout_id.csv"))[,1]
-        else
-            holdout_sample <- sample(1:dim(X)[1], dim(X)[1] / Q)
+        } else {
+            holdout_sample <- sample(available_sample, floor(dim(X)[1] / Q))
+        }
         available_sample <- available_sample[-holdout_sample]
         train_sample <- seq(1:dim(X)[1])[!(seq(1:dim(X)[1]) %in% holdout_sample)]
         ho_X <- X[holdout_sample,]
@@ -187,17 +187,24 @@ for (trial in trial_ls) {
             ptof_param_search <- find_ptof_param(x = train_X, y = train_Y, tx = train_W, validation_fold = 4, num_search_rounds = 50)
             ptof_param <- ptof_param_search[1, 1:3]
             ptof_param <- list(num.trees = ptof_param$num_trees, mtry = ptof_param$mtry, min.node.size = ptof_param$min_node_size)
-            ptof <- do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = TRUE, verbose = TRUE), ptof_param))
+            ptof <- try(do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = FALSE, verbose = TRUE), ptof_param))) # sometimes PTO forest can fail to produce some estimates with holdout data
         } else {
-            ptof <- PTOforest(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+            ptof <- try(PTOforest(x = train_X, tx = train_W, y = train_Y, verbose = TRUE))
 
         }
-        ptof_tau_pred <- predict(ptof, ho_X)
+        ptof_tau_pred <- try(predict(ptof, ho_X))
+        ptof_rloss_pred <- try(rloss(tau.pred = ptof_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
+
+        if (class(ptof) == "try-error" | class(ptof_tau_pred) == "try-error" | class(ptof_rloss_pred) == "try-error") {
+            print("Cannot build this model.")
+            ptof_tau_pred <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+        } else {
+            compare_rloss <- rbind(compare_rloss, c(ptof_rloss_pred$nnls_coeff, ptof_rloss_pred$mse, ptof_rloss_pred$mse_debiased))
+        }
 
         tau_ls <- append(tau_ls, list(ptof_tau_pred))
 
-        ptof_rloss_pred <- rloss(tau.pred = ptof_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
-        compare_rloss <- rbind(compare_rloss, c(ptof_rloss_pred$nnls_coeff, ptof_rloss_pred$mse, ptof_rloss_pred$mse_debiased))
 
 
 

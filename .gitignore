@@ -7,8 +7,8 @@
 *.out
 *.o
 **/result/
-**/res/
-*.pdf
+# **/res/
+# *.pdf
 *.svg
 *.png
 *.txt
@@ -20,11 +20,11 @@
 ######################
 **/GDCdata/
 *.rda
-*.csv
+# *.csv
 *.xlsx
-**/data
+# **/data
 **/raw/
-**/dat/
+/dat/PDS/**
 
 
 

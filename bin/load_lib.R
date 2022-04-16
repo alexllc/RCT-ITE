@@ -23,6 +23,7 @@ library(caret) # cross validation
 
 # Find HTE
 library(hettx)
+library(formula.tools) # a bug in the package failed to import forumla.tools s.t. FRTCI cannot get variables from the formula
 
 
 nnls <- function(M, v, constrained) {

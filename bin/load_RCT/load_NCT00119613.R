@@ -85,16 +85,18 @@ X <- filter(X, ELIGYN == 1)
 
 pfs <- data.frame(T = X$PFSDY, C = X$PFSCD)
 tx <- X$TXGROUP
+W <- as.numeric(tx == "NESP")
 
 X$PFSDY <- NULL
 X$PFSCD <- NULL
 X$TXGROUP <- NULL
+X$SUBJID <- NULL
 
 X <- missing_too_much(X)
 X_imp <- impute_df_missing(clin_df = X, save_ddt = FALSE)
 
 # No missing indicators to be corrected
 
-Y_list <- impute_survival(T = pfs$T, C = pfs$C, X = X_imp)
+Y_list <- impute_survival(T = pfs$T / 30.4167, C = pfs$C, X = X_imp)
 
 NCT00119613 <- list(X_imp, Y_list, W)
