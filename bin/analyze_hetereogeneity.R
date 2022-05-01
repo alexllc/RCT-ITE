@@ -72,7 +72,7 @@ if (import_mse_res) {
     for (trial in trial_ls) {
 
         for (iter in 1:best_tau_fold) {
-            r_loss <- read.csv(paste0("./res/", trial, "_model_sel_", iter, "_res.csv"))
+            r_loss <- read.csv(paste0("./res/crossfit_rloss/", trial, "_model_sel_", iter, "_res.csv"))
             if (iter == 1){
                 sum_tbl <- data.frame(method_name = r_loss$X)
                 sum_tbl <- cbind(sum_tbl, r_loss$mse)
@@ -101,7 +101,7 @@ if (import_mse_res) {
 
     write.csv(min_mse_method, "best_tau_estimators.csv", row.names = FALSE)
 } else {
-    min_mse_method <- read.csv("./best_tau_estimators.csv")
+    min_mse_method <- read.csv("./res/crossfit_rloss/best_tau_estimators.csv")
 }
 #
 # Calculate HTE using the best tau estimator 

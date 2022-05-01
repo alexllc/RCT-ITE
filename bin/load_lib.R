@@ -1,30 +1,21 @@
+suppressPackageStartupMessages({
 library(tidyr) # you should load tidyr before loading dplyr
-library(dplyr)
-library(impute)
-
+library(dplyr); library(impute); 
 # Survival analysis
-library(survival)
-library(survminer)
-library(imputeYn)
-library(pseudo)
+library(survival); library(survminer); library(imputeYn); library(pseudo)
 
 # Causal inference
 library(causalToolbox) # X-learner
-library(grf)
-library(causalLearning) # Powers
+library(grf); library(causalLearning) # Powers
 
 # R-learner
-library(rlearner)
-library(KRLS2)
-library(glmnet)
-library(nnls)
-
-library(caret) # cross validation
-
+library(rlearner); library(KRLS2); library(glmnet); library(nnls); library(caret) # cross validation 
 # Find HTE
-library(hettx)
-library(formula.tools) # a bug in the package failed to import forumla.tools s.t. FRTCI cannot get variables from the formula
+library(hettx); library(formula.tools) ; # a bug in the package failed to import forumla.tools s.t. FRTCI cannot get variables from the formula
 
+# post hoc analysis
+library(aod); library(lmtest)
+})
 
 nnls <- function(M, v, constrained) {
     Dmat <- t(M) %*% M
