@@ -16,8 +16,6 @@ for(col in colnames(clin_df)) {
     print(missing_prop <- sum(is.na(clin_df[[col]])) / dim(clin_df)[1])
 }
 
-biom <- dplyr::select(biom, all_of(c("SUBJID", "KRAS_exon_2_(c12/13)")))
-
 identical(adsl$SUBJID, biom$SUBJID)
 
 adsl <- left_join(adsl, biom, by = c("SUBJID"))

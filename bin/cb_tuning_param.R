@@ -14,9 +14,9 @@ perform_xb = TRUE
 # CRC:"NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274"
 # HNC: "NCT00460265"
 # BC: "NCT00041119"
-# SCLC: "NCT00003299", "NCT00119613"
+# SCLC: "NCT00003299", "NCT00119613", "NCT00041119"
 
-trial_ls <- c("NCT00041119")
+trial_ls <- c("NCT00113763")
 
 for (trial in trial_ls) {
     # For testing only:
@@ -27,7 +27,7 @@ for (trial in trial_ls) {
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
 
-    source(paste0("./bin/load_BC_RCT/load_", trial, ".R"))
+    source(paste0("./bin/load_RCT/load_", trial, ".R"))
 
     if (trial == "NCT00041119") {
         for (type in c("_chemo")) { #"_length", 
