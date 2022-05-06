@@ -2,7 +2,7 @@ source("./bin/load_lib.R")
 # SHAP values
 suppressPackageStartupMessages({
 library("SHAPforxgboost"); library("ggplot2"); library("xgboost")
-library("data.table"); library("here")
+library("data.table"); library("here"); library("svglite")
 })
 
 trial_hte_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",  "NCT00460265", "NCT00041119_length", "NCT00041119_chemo", "NCT00003299", "NCT00119613")
@@ -22,6 +22,30 @@ for (trial in trial_hte_ls) {
 
     tau <- read.csv(paste0("./res/ite_tau_estimates/", trial, "_", min_mse_method[min_mse_method$trial == trial, "best_tau_method"], "_tau_estimates.csv"))
 
+    # Omnibus test for systemic variations
+    lm_df <- cbind(data.frame(tau = tau[,1]), X)
+    taulm <- lm(tau ~ ., data = lm_df)
+    stev <- try(wald.test(Sigma = vcov(taulm), b = coef(taulm), Terms = 2:dim(X)[2]))
+    print(summary(taulm))
+    if (stev != "try-error") {
+        print(stev)
+    } else {
+        print("Can't perform Wald!")
+    }
+
+    sig_coeff <- c()
+    # likelihood test by eliminating covaraites from model
+    for (covar in colnames(X)) {
+        #fit reduced model
+        model_reduced <- lm(as.formula(paste0("tau ~ . - `", covar, "`")), data = lm_df)
+        lrtres <- lrtest(taulm, model_reduced)
+        #perform likelihood ratio test for differences in models
+        print(lrtres)
+        if (lrtres$`Pr(>Chisq)`[2] < 0.05) {
+            sig_coeff <- c(sig_coeff, covar)
+        }
+    }
+
     # XGBoost to decompose effect modifier
     xgb_res <- readRDS(paste0("./dat/xgb_model/", trial, "_xgb_model.rds")) # generated from cvboost(x = X, y = tau[,1], objective="reg:squarederror")
     
@@ -40,26 +64,19 @@ for (trial in trial_hte_ls) {
     shap_long <- shap.prep(shap_contrib = shap_values$shap_score, X_train = X)
 
     # summary plot
-    pdf(paste0("./res/plot/", trial, "/", trial, "_shap_plot.pdf"))
+    svglite(paste0("./res/plot/", trial, "/", trial, "_shap_plot.svg"))
     print(shap.plot.summary(shap_long))
     dev.off()
-
-    png(paste0("./res/plot/", trial, "/", trial, "_shap_plot.png"))
-    print(shap.plot.summary(shap_long))
-    dev.off()
-
-    # multiple interactions
-    pdf(paste0("./res/plot/", trial, "/", trial, "_multi-int_plot.pdf"))
-    fit_list <- lapply(names(shap_values$mean_shap_score)[1:6], 
-                    shap.plot.dependence, data_long = shap_long)
-    gridExtra::grid.arrange(grobs = fit_list, ncol = 2)
-    dev.off()
-
-    png(paste0("./res/plot/", trial, "/", trial, "_multi-int_plot.png"))
-    fit_list <- lapply(names(shap_values$mean_shap_score)[1:6], 
-                    shap.plot.dependence, data_long = shap_long)
-    gridExtra::grid.arrange(grobs = fit_list, ncol = 2)
-    dev.off()
+, height = ceiling(8 * length(sig_coeff) / 4)
+    if (length(sig_coeff > 1)) {
+        
+        # multiple interactions
+        svglite(paste0("./res/plot/", trial, "/", trial, "_multi-int_plot.svg"))
+        fit_list <- lapply(sig_coeff, 
+                        shap.plot.dependence, data_long = shap_long, color_feature = 'auto')
+        gridExtra::grid.arrange(grobs = fit_list, ncol = 2)
+        dev.off()
+    }
 }
 
 #############################################################################
@@ -99,20 +116,19 @@ dev.off()
 #############################################################################
 
 # Interactions
-pdf(paste0("./res/plot/", trial, "_KRASe2_int_plot.pdf"))
+svglite(paste0("./res/plot/", trial, "_KRASe2_int_plot.svg"))
 shap.plot.dependence(data_long = shap_long, x = 'KRAS_exon_2_(c12/13)', color_feature = 'auto') + ggtitle("SHAP values of KRAS_exon_2_(c12/13) vs. KRAS_exon_2_(c12/13)")
 dev.off()
 
-pdf(paste0("./res/plot/", trial, "_BECOG_int_plot.pdf"))
-shap.plot.dependence(data_long = shap_long, x = 'B_ECOG', color_feature = 'auto') + ggtitle("SHAP values of Baseline ECOG Performance Status
- vs. Baseline ECOG Performance Status")
+svglite(paste0("./res/plot/", trial, "_BWEIGHT_int_plot.svg"))
+shap.plot.dependence(data_long = shap_long, x = 'B_WEIGHT', color_feature = 'auto') + ggtitle("SHAP values of Baseline weight vs. Baseline weight Performance Status")
 dev.off()
 
 pdf(paste0("./res/plot/", trial, "_AGE_int_plot.pdf"))
 shap.plot.dependence(data_long = shap_long, x = 'AGE', color_feature = 'auto') + ggtitle("SHAP values of age vs. age")
 dev.off()
 
-pdf(paste0("./res/plot/", trial, "_KRASe4_int_plot.pdf"))
+svglite(paste0("./res/plot/", trial, "_KRASe4_int_plot.svg"))
 shap.plot.dependence(data_long = shap_long, x = 'KRAS_exon_4_(c117/146)', color_feature = 'auto') + ggtitle("SHAP values of KRAS_exon_4_(c117/146) vs. KRAS_exon_4_(c117/146)")
 dev.off()
 

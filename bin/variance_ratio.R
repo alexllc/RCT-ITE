@@ -51,13 +51,17 @@ for (trial in trial_hte_ls) {
         print("Can't perform Wald!")
     }
 
+    sig_coeff <- c()
     # likelihood test by eliminating covaraites from model
     for (covar in colnames(X)) {
         #fit reduced model
-        model_reduced <- lm(as.formula(paste0("tau ~ . - ", covar)), data = lm_df)
-
+        model_reduced <- lm(as.formula(paste0("tau ~ . - `", covar, "`")), data = lm_df)
+        lrtres <- lrtest(taulm, model_reduced)
         #perform likelihood ratio test for differences in models
-        print(lrtest(taulm, model_reduced))
+        print(lrtres)
+        if (lrtres$`Pr(>Chisq)`[2] < 0.05) {
+            sig_coeff <- c(sig_coeff, covar)
+        }
     }
 
 

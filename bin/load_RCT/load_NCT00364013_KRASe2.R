@@ -15,10 +15,15 @@ adsl[adsl == ""] <- NA
 adsl$ATRT <- as.numeric(adsl$ATRT == "Panitumumab + FOLFOX")
 print(table(adsl$ATRT))
 
+biomarker <- read.csv("./dat/PDS/Colorec_Amgen_2006_309_NCT00364013/csv/biomark_pds2019.csv")
+biom <- biomarker[,c(1,seq(3, dim(biomarker)[2], 2))]
+biom[biom == ""] <- NA
+for(col in colnames(biom)) {
+    print(missing_prop <- sum(is.na(biom[[col]])) / dim(biom)[1])
+}
+# only BMMTR1 had sufficient non-missing data
+clin_df <- left_join(adsl, as.data.frame(biom[,c(1:2)]), by = c("SUBJID"))
 
-# impute missing data
-
-clin_df <- adsl
 # convert categorical to numeric
 num_df <- cat2num(clin_df)
 num_clin_df <- num_df[[1]]
@@ -43,8 +48,8 @@ imp_clin_df$OS_mo <- imp_clin_df$DTHDY / 30.4167
 
 # Format for causal inference
 
-X <- select(imp_clin_df, all_of(c("LIVERMET", "DIAGMONS", "AGE",  "SEX", "B_WEIGHT", "B_HEIGHT", "RACE",  "B_ECOG", "HISSUBTY", "B_METANM", "DIAGTYPE")))
+X <- select(imp_clin_df, all_of(c("LIVERMET", "DIAGMONS", "AGE",  "SEX", "B_WEIGHT", "B_HEIGHT", "RACE",  "B_ECOG", "HISSUBTY", "B_METANM", "DIAGTYPE", "BMMTR1")))
 W <- adsl$ATRT
 Y_list <- impute_survival(T = imp_clin_df$PFS_mo, C = imp_clin_df$PFSCR, X = X)
 
-NCT00364013 <- list(X, Y_list, W)
+NCT00364013_KRASe2 <- list(X, Y_list, W)

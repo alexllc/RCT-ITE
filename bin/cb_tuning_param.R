@@ -16,7 +16,7 @@ perform_xb = TRUE
 # BC: "NCT00041119"
 # SCLC: "NCT00003299", "NCT00119613", "NCT00041119"
 
-trial_ls <- c("NCT00113763")
+trial_ls <- c("NCT00364013_KRASe2", "NCT00364013_biom")
 
 for (trial in trial_ls) {
     # For testing only:
