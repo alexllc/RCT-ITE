@@ -67,7 +67,7 @@ if (import_mse_res) {
     trial_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
                     "NCT00460265",
                     "NCT00041119_length", "NCT00041119_chemo",
-                    "NCT00003299", "NCT00119613")
+                    "NCT00003299", "NCT00119613", "NCT00364013_KRASe2", "NCT00364013_biom")
 
     for (trial in trial_ls) {
 
@@ -113,9 +113,8 @@ prob <- 0.5
 #                 "NCT00460265", # CF takes a long time
 #                 "NCT00041119_length", "NCT00041119_chemo",
 #                 "NCT00003299", "NCT00119613")
-trial_hte_ls <- c("NCT00113763")
+trial_hte_ls <- c("NCT00364013_KRASe2", "NCT00364013_biom")
 
-hte_df <- data.frame(trial = character(), stat = numeric(), pval_sweep = numeric(), pval_plugin = numeric())
 
 for (trial in trial_hte_ls) {
 
@@ -127,7 +126,7 @@ for (trial in trial_hte_ls) {
     X <- as.matrix(get(trial)[[1]])
     Y <- get(trial)[[2]][[1]]
     W <- get(trial)[[3]]
-
+7
     if (trial == "NCT00364013"){ # rboosting
 
         tau <- perform_rlearn(X = X, W = W, Y = Y, tauMethod = "rboost")
@@ -167,14 +166,4 @@ for (trial in trial_hte_ls) {
 
     write.csv(tau, paste0(trial, "_", min_mse_method[min_mse_method$trial == trial, "best_tau_method"], "_tau_estimates.csv"), row.names = FALSE)
     
-    # hte <- detect_idiosyncratic(formula = Y ~ W, data = data.frame(Y, W), plugin = TRUE, tau.hat = tau, test.stat = "SKS.stat")
-
-    # print(hte)
-    
-    # hte_df <- rbind(hte_df, c(trial, hte$statistic, hte$p.value, hte$p.value.plug))
-    # write.csv(hte_df, paste0(trial, "_tmp_hte.csv"), row.names = FALSE)
-    
 }
-# colnames(hte_df)  <- c("trial", "stat", "pval_sweep", "pval_plugin")
-
-# write.csv(hte_df, "./res/HTE_results.csv", row.names = FALSE)

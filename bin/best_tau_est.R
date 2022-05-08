@@ -17,7 +17,7 @@ perform_xb = FALSE
 #                 "NCT00041119_length", "NCT00041119_chemo",
 #                 "NCT00003299", "NCT00119613")
 
-trial_ls <- c("NCT00113763")
+trial_ls <- c("NCT00364013_KRASe2", "NCT00364013_biom")
 
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
 # find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = TRUE) {

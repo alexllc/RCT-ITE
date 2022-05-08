@@ -61,7 +61,7 @@ imp_clin_df$OS_mo <- imp_clin_df$DTHDY / 30.4167
 # Format for causal inference
 
 X <- select(imp_clin_df, all_of(c("LIVERMET", "DIAGMONS", "AGE",  "SEX", "B_WEIGHT", "B_HEIGHT", "RACE",  "B_ECOG", "HISSUBTY", "B_METANM", "DIAGTYPE", "BMMTR1", "BMMTR2", "BMMTR3", "BMMTR4", "BMMTR5", "BMMTR6", "BMMTR7", "BMMTR15", "BMMTR16")))
-W <- adsl$ATRT
+W <- adsl$ATRT[adsl$SUBJID %in% biomsub]
 Y_list <- impute_survival(T = imp_clin_df$PFS_mo, C = imp_clin_df$PFSCR, X = X)
 
 NCT00364013_biom <- list(X, Y_list, W)

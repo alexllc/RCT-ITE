@@ -9,11 +9,8 @@ rand_obj <- objectives[objectives$mask_id %in% rand_char$mask_id, ]
 
 X <- dplyr::select(rand_char, all_of(c("agecat", "racecat", "SEX", "BWL_OBS", "BWL_PERF", "HISTO_G", "NODES", "STAGE_G", "PS", "wild", "bmi2")))
 
-x <- missing_too_much(X)
+X <- missing_too_much(X)
 
-for(col in colnames(X)) {
-    
-}
 
 W <- as.numeric(rand_char$ARM == "A")
 table(W)
