@@ -1,6 +1,6 @@
 suppressPackageStartupMessages({
 library(tidyr) # you should load tidyr before loading dplyr
-library(dplyr); library(impute); 
+library(dplyr); library(impute); library(naniar);
 # Survival analysis
 library(survival); library(survminer); library(imputeYn); library(pseudo)
 
