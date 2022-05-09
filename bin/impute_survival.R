@@ -1,4 +1,5 @@
-
+#' Function to perform 3 types of survival time imputation for right censored outcomes
+#' 
 impute_survival <- function(T = NULL, C = NULL, X = NULL) {
     # 1. Efron's tail correction
     source("./audit/datta_surv_imp.R")
@@ -16,6 +17,7 @@ impute_survival <- function(T = NULL, C = NULL, X = NULL) {
         replace_Yn_os[order(T, decreasing = T)[1]] <- imputedYn
         efron_tail_Yn <- exp(impute.survival(surv.time = replace_Yn_os, censor = C))
     } else {
+        message("Largest OS is not censored.")
         efron_tail_Yn <- NA
     }
     # 3. Pseudo-observation

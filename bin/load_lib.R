@@ -17,6 +17,8 @@ library(hettx); library(formula.tools) ; # a bug in the package failed to import
 library(aod); library(lmtest)
 })
 
+source("./bin/impute_survival.R")
+
 nnls <- function(M, v, constrained) {
     Dmat <- t(M) %*% M
     dvec <- t(M) %*% v
