@@ -7,10 +7,7 @@ source("./bin/mod_causalboost.R")
 
 prob = 0.5
 Q = 4
-tuned_cb_param = TRUE
-tuned_cm_param = TRUE
-tune_ptof_param = TRUE
-perform_xb = TRUE
+
 # CRC:"NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274"
 # HNC: "NCT00460265"
 # BC: "NCT00041119"
