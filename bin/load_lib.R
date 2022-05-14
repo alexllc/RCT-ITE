@@ -19,6 +19,13 @@ library(aod); library(lmtest)
 
 source("./bin/impute_survival.R")
 
+na_strings <- c("", "NA", "98", 98, "99", 99, "missing", "Unknown", "unknown", "<NA>", "Unable to evaluate", "Non Evaluable", "Failure", "failure", "Not applicable", "Not Applicable", "Not done", "Not Done","Other", "other")
+
+coalesce_by_column <- function(df) {
+  return(coalesce(df[1], df[2]))
+}
+
+
 nnls <- function(M, v, constrained) {
     Dmat <- t(M) %*% M
     dvec <- t(M) %*% v
@@ -113,14 +120,22 @@ missing_too_much <- function(clin_df) {
 
     for(col in colnames(clin_df)) {
         missing_prop <- sum(is.na(clin_df[[col]])) / dim(clin_df)[1]
+        zero_prop <- sum(clin_df[[col]] == 0, na.rm = TRUE) / dim(clin_df)[1]
         if (missing_prop > 0.5) {
             print(paste0("More than 50% missing data! Removing from df.: ", col))
             clin_df[[col]] <- NULL
-        } else if(length(unique(na.omit(clin_df[[col]]))) == 1) {
+        } else if(length(unique(na.omit(clin_df[[col]]))) == 1 | var(na.omit(clin_df[[col]]) == 0)) {
                 print(paste0("All values are the same, removing: ", col))
                 clin_df[[col]] <- NULL
+        } else if (zero_prop > 0.8) {
+            print(paste0("More than 80% of values are 0s, removing: ", col))
+            clin_df[[col]] <- NULL
         }
     }
 
     return(clin_df)
+}
+
+hdf <- function(df, n = 10) {
+    print(head(as.data.frame(df), n = n))
 }

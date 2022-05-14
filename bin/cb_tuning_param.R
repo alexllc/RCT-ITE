@@ -37,7 +37,7 @@ for (trial in trial_ls) {
         imputation_methods <- c("efron", "efron+Yn", "pseudo")
         for (imp_type_Y in 1:3) {
     
-            if (is.na(imp_type_Y)) {
+            if (is.na(Y_list[[imp_type_Y]])) {
                 message(paste0("Imputation type ", imputation_methods[imp_type_Y], " is not available, skipping."))
                 next
             } else {
