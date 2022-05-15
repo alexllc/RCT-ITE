@@ -32,11 +32,20 @@ for (trial in trial_ls) {
     outcome_list <- get(paste0(trial, "_outcomes"))
 
     for (outcome in outcome_list) {
+        
+        message(paste0(rep("=", 80)))
+        message(paste0("Analyzing: ", outcome))
+        message(paste0(rep("=", 80)))
+        
         Y_list <- get(paste0(outcome, "_Y_list"))
 
         imputation_methods <- c("efron", "efron+Yn", "pseudo")
         for (imp_type_Y in 1:3) {
-    
+            
+            message(paste0(rep("=", 80)))
+            message(paste0("Analyzing imputation method: ", imputation_methods[imp_type_Y]))
+            message(paste0(rep("=", 80)))
+            
             if (is.na(imp_type_Y)) {
                 message(paste0("Imputation type ", imputation_methods[imp_type_Y], " is not available, skipping."))
                 next
