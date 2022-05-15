@@ -17,7 +17,7 @@ perform_xb = FALSE
 #                 "NCT00041119_length", "NCT00041119_chemo",
 #                 "NCT00003299", "NCT00119613")
 
-trial_ls <- c("NCT00364013_KRASe2", "NCT00364013_biom")
+trial_ls <- c("", "")
 
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
 # find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = TRUE) {
@@ -40,7 +40,7 @@ for (trial in trial_ls) {
         imputation_methods <- c("efron", "efron+Yn", "pseudo")
         for (imp_type_Y in 1:3) {
     
-            if (is.na(imp_type_Y)) {
+            if (is.na(is.na(Y_list[[imp_type_Y]]))) {
                 message(paste0("Imputation type ", imputation_methods[imp_type_Y], " is not available, skipping.")
                 next
             } else {
