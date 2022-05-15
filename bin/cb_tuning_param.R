@@ -7,16 +7,13 @@ source("./bin/mod_causalboost.R")
 
 prob = 0.5
 Q = 4
-tuned_cb_param = TRUE
-tuned_cm_param = TRUE
-tune_ptof_param = TRUE
-perform_xb = TRUE
+
 # CRC:"NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274"
 # HNC: "NCT00460265"
 # BC: "NCT00041119"
-# SCLC: "NCT00003299", "NCT00119613"
+# SCLC: "NCT00003299", "NCT00119613", "NCT00041119"
 
-trial_ls <- c("NCT00041119")
+trial_ls <- c("NCT00364013_KRASe2", "NCT00364013_biom")
 
 for (trial in trial_ls) {
     # For testing only:
@@ -27,58 +24,57 @@ for (trial in trial_ls) {
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
 
-    source(paste0("./bin/load_BC_RCT/load_", trial, ".R"))
+    source(paste0("./bin/load_RCT/load_", trial, ".R"))
+    print("Regular param testing.")
+    X <- as.matrix(get(trial)[[1]])
+    W <- get(trial)[[2]]
 
-    if (trial == "NCT00041119") {
-        for (type in c("_chemo")) { #"_length", 
-            trial_type <- paste0(trial, type)
-            print(paste0("Processing: ", trial_type))
-            X <- as.matrix(get(trial_type)[[1]])
-            Y <- get(trial_type)[[2]][[1]]
-            W <- get(trial_type)[[3]]
+    outcome_list <- get(paste0(trial, "_outcomes"))
 
-            # We need to take out 1/Q sample as the holdout test data, the rest of the samples are used for training
-            holdout_sample <- sample(1:dim(X)[1], dim(X)[1] / Q)
-            train_sample <- seq(1:dim(X)[1])[!(seq(1:dim(X)[1]) %in% holdout_sample)]
-            ho_X <- X[holdout_sample,]
-            ho_W <- W[holdout_sample]
-            ho_Y <- Y[holdout_sample]
+    for (outcome in outcome_list) {
+        
+        message(paste0(rep("=", 80)))
+        message(paste0("Analyzing: ", outcome))
+        message(paste0(rep("=", 80)))
+        
+        Y_list <- get(paste0(outcome, "_Y_list"))
 
-            train_X <- X[train_sample,]
-            train_W <- W[train_sample]
-            train_Y <- Y[train_sample]
+        imputation_methods <- c("efron", "efron+Yn", "pseudo")
+        for (imp_type_Y in 1:3) {
+            
+            message(paste0(rep("=", 80)))
+            message(paste0("Analyzing imputation method: ", imputation_methods[imp_type_Y]))
+            message(paste0(rep("=", 80)))
+            
+            if (is.na(imp_type_Y)) {
+                message(paste0("Imputation type ", imputation_methods[imp_type_Y], " is not available, skipping."))
+                next
+            } else {
+                Y <- Y_list[[imp_type_Y]]
+            }
 
-            cb_param <- find_cb_param(train_X, train_Y, train_W, num_search_rounds = 10)
+            ho_matrix <- read.csv(paste0("./dat/cv_ho_ids/cb_param_", trial, "_holdout_id.csv"))
+            for (iter in 1:Q) {
 
-            print(cb_param)
+                # We need to take out 1/Q sample as the holdout test data, the rest of the samples are used for training
+                holdout_sample <- ho_matrix[,iter]
+                available_sample <- seq(1:dim(X)[1])
+                train_sample <- available_sample[!available_sample %in% holdout_sample]
 
-            write.csv(cb_param, paste0("./dat/", trial, "_cb_param.csv"), row.names = TRUE)
-            write.csv(holdout_sample, paste0("./dat/", trial, "_holdout_id.csv"), row.names = FALSE)
+                ho_X <- X[holdout_sample,]
+                ho_W <- W[holdout_sample]
+                ho_Y <- Y[holdout_sample]
+
+                train_X <- X[train_sample,]
+                train_W <- W[train_sample]
+                train_Y <- Y[train_sample]
+
+                cb_param <- find_cb_param(train_X, train_Y, train_W, num_search_rounds = 10)
+
+                print(cb_param)
+
+                write.csv(cb_param, paste0("./dat/cb_param/", trial, imputation_methods[imp_type_Y], "_", outcome, "_", iter, "_cb_param.csv"), row.names = TRUE)
+            }
         }
-    } else {
-        print("Regular param testing.")
-        X <- as.matrix(get(trial)[[1]])
-        Y <- get(trial)[[2]][[1]]
-        W <- get(trial)[[3]]
-
-        # We need to take out 1/Q sample as the holdout test data, the rest of the samples are used for training
-        holdout_sample <- sample(1:dim(X)[1], dim(X)[1] / Q)
-        train_sample <- seq(1:dim(X)[1])[!(seq(1:dim(X)[1]) %in% holdout_sample)]
-        ho_X <- X[holdout_sample,]
-        ho_W <- W[holdout_sample]
-        ho_Y <- Y[holdout_sample]
-
-        train_X <- X[train_sample,]
-        train_W <- W[train_sample]
-        train_Y <- Y[train_sample]
-
-        cb_param <- find_cb_param(train_X, train_Y, train_W, num_search_rounds = 10)
-
-        print(cb_param)
-
-        write.csv(cb_param, paste0("./dat/", trial, "_cb_param.csv"), row.names = TRUE)
-        write.csv(holdout_sample, paste0("./dat/", trial, "_holdout_id.csv"), row.names = FALSE)
     }
-
-
 }
