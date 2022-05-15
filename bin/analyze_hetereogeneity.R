@@ -1,5 +1,5 @@
 # Script to find hetereogeneity based on the best selected tau values
-source("./bin/load_lib.R", echo = FALSE)
+source("./bin/load_lib.R")
 source("./bin/rstack.R")
 
 import_mse_res <- FALSE
