@@ -200,7 +200,7 @@ colnames(trial_choice)[1] <- "trialID"
 
 
 
-for (j in 1:dim(trial_choice)[1]) {
+for (j in 5:dim(trial_choice)[1]) {
 
     trial <- trial_choice[j,1]
     message(paste0(rep("=", 80)))
