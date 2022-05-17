@@ -19,7 +19,6 @@
 # Imported datasets #
 ######################
 **/GDCdata/
-*.rda
 # *.csv
 *.xlsx
 # **/data
@@ -30,7 +29,5 @@
 
 # R workspace history #
 ######################
-*.Rdata
-*.RData
 *.Rhistory
 *.radian_history
