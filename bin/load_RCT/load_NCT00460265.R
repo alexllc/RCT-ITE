@@ -131,3 +131,5 @@ NCT00460265_outcomes <- c("OS", "PFS", "ORR")
 for (outcome in NCT00460265_outcomes) {
     assign(paste0(outcome, "_Y_list"), do.call(impute_survival, list(T = get(outcome)[,1], C = get(outcome)[,2], X = X_imp)))
 }
+
+save(NCT00460265, NCT00460265_outcomes, OS_Y_list, PFS_Y_list, ORR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00460265.RData")

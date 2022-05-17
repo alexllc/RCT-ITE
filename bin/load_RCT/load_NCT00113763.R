@@ -69,6 +69,7 @@ all(adsl$TRT==adsl$ATRT)
 message(c("Which patient(s) had different assigned vs actual treatment: ", which(!(adsl$TRT==adsl$ATRT))))
 
 W <- adsl$ATRT[adsl$SUBJID %in% sel_SUBJID]
+W <- as.numeric(W == "panit. plus best supportive care")
 #
 # Export trial data
 #
@@ -113,3 +114,5 @@ for (outcome in NCT00113763_outcomes) {
         RSP_Y_list <- list(imp_df$rsp_avg, NA, NA)
     }
 }
+
+save(NCT00113763, NCT00113763_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00113763.RData")

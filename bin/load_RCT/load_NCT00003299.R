@@ -39,3 +39,5 @@ for (outcome in NCT00003299_outcomes) {
         assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
     }
 }
+
+save(NCT00003299, NCT00003299_outcomes, OS_Y_list, PFS_Y_list, PD_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00003299.RData")

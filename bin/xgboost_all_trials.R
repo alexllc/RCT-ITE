@@ -13,7 +13,7 @@ for (trial in trial_hte_ls) {
     message(paste0(rep("=", 80)))
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
-        source(paste0("./bin/load_RCT/load_", trial, ".R"))
+    source(paste0("./bin/load_RCT/load_", trial, ".R"))
     X <- as.matrix(get(trial)[[1]])
     Y <- get(trial)[[2]][[1]]
     W <- get(trial)[[3]]

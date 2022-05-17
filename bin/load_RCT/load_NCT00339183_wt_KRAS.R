@@ -1,6 +1,6 @@
 source("./bin/load_RCT/load_NCT00339183.R")
 
-wtkras_sel <- corevar$KRAS == "Wild-type"
+wtkras_sel <- X_imp$KRAS == 3
 wtkras_SUB <- corevar$SUBJID[wtkras_sel]
 #
 # Export trial data
@@ -36,3 +36,5 @@ for (outcome in NCT00339183_wt_KRAS_outcomes) {
 
     }
 }
+
+save(NCT00339183_wt_KRAS, NCT00339183_wt_KRAS_outcomes, OS_Y_list, PFS_Y_list, ORR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00339183_wt_KRAS.RData")

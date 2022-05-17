@@ -1,6 +1,6 @@
 source("./bin/load_RCT/load_NCT00339183.R")
 
-mtkras_sel <- corevar$KRAS == "Mutant"
+mtkras_sel <- X_imp$KRAS == 2
 mtkras_SUB <- corevar$SUBJID[mtkras_sel]
 #
 # Export trial data
@@ -14,7 +14,7 @@ PFS <- data.frame(T = endpt$PDDYLR / 30.4167, C = endpt$PDLR) # secondary outcom
 OS <- data.frame(T = endpt$DTHDY / 30.4167 , C = endpt$DTH) # primary outcome
 
 # one DTHDY entry was missing, last contact day relative to 1st dose will be used instead
-OS[which(is.na(OS$T)), 1] <- endpt$LASTCTDY[which(is.na(OS$T))] / 30.4167 # convert days to months
+OS[which(is.na(OS$T)), 1] <- endpt$PFUP[which(is.na(OS$T))] / 7 # convert days to months
 
 
 # Ordinal categorical outcome
@@ -36,3 +36,5 @@ for (outcome in NCT00339183_mt_KRAS_outcomes) {
 
     }
 }
+
+save(NCT00339183_mt_KRAS, NCT00339183_mt_KRAS_outcomes, OS_Y_list, PFS_Y_list, ORR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00339183_mt_KRAS.RData")

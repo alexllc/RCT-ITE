@@ -15,6 +15,7 @@
 #' 
 #' 
 
+
 file_path <- "./dat/PDS/Colorec_Amgen_2005_262_NCT00115765/csv/"
 
 datals <- c("corevar", "a_eendpt", "respeval","demo", "eligcrit", "lab", "lesion", "medhist", "chemotx", "radiotx", "surghist", "vitals_v")
@@ -136,6 +137,7 @@ for (outcome in NCT00115765_outcomes) {
         assign(paste0(outcome, "_Y_list"), do.call(impute_survival, list(T = get(outcome)[,1], C = get(outcome)[,2], X = X_imp)))
     } else {
         ORR_Y_list <- list(ORR, NA, NA)
-
     }
 }
+
+save(NCT00115765, NCT00115765_outcomes, OS_Y_list, PFS_Y_list, TF_Y_list, ORR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00115765.RData")

@@ -36,3 +36,5 @@ for (outcome in NCT00041119_chemo_outcomes) {
         assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
     }
 }
+
+save(NCT00041119_chemo, NCT00041119_chemo_outcomes, OS_Y_list, RFS_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00041119_chemo.RData")

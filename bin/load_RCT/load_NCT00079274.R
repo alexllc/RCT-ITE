@@ -48,3 +48,4 @@ for (outcome in NCT00079274_outcomes) {
     }
 }
 
+save(NCT00079274, NCT00079274_outcomes, OS_Y_list, DFS_Y_list, PFS_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00079274.RData")

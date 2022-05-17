@@ -22,7 +22,7 @@ oxa_subj <- which(corevar$CHEMO == "Oxaliplatin")
 #
 # Export trial data
 #
-NCT00115765_oxa <- list(NCT00115765[[1]][oxa_subj,], NCT00115765[[2]]W[oxa_subj])
+NCT00115765_oxa <- list(NCT00115765[[1]][oxa_subj,], NCT00115765[[2]][oxa_subj])
 
 # Objective response
 endpt <- a_eendpt[oxa_subj,]
@@ -49,3 +49,5 @@ for (outcome in NCT00115765_oxa_outcomes) {
 
     }
 }
+
+save(NCT00115765_oxa, NCT00115765_oxa_outcomes, OS_Y_list, PFS_Y_list, ORR_Y_list, TF_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00115765_oxa.RData")

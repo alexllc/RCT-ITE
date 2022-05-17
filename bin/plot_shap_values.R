@@ -7,7 +7,7 @@ library("data.table"); library("here"); library("svglite")
 
 trial_hte_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",  "NCT00460265", "NCT00041119_length", "NCT00041119_chemo", "NCT00003299", "NCT00119613")
 
-min_mse_method <- read.csv("./res/crossfit_rloss/best_tau_estimators.csv")
+min_mse_method <- read.csv("./res_PFS_only/crossfit_rloss/best_tau_estimators.csv")
 
 
 for (trial in trial_hte_ls) {
@@ -15,12 +15,12 @@ for (trial in trial_hte_ls) {
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
     
-    source(paste0("./bin/load_RCT/load_", trial, ".R"))
+    load(paste0("./bin/load_RCT/RCT_obj/", trial, ".RData"))
     X <- as.matrix(get(trial)[[1]])
-    Y <- get(trial)[[2]][[1]]
-    W <- get(trial)[[3]]
+    W <- get(trial)[[2]]
+    Y <- PFS_Y_list[[1]]
 
-    tau <- read.csv(paste0("./res/ite_tau_estimates/", trial, "_", min_mse_method[min_mse_method$trial == trial, "best_tau_method"], "_tau_estimates.csv"))
+    tau <- read.csv(paste0("./res_PFS_only/ite_tau_estimates/", trial, "_", min_mse_method[min_mse_method$trial == trial, "best_tau_method"], "_tau_estimates.csv"))
 
     # Omnibus test for systemic variations
     lm_df <- cbind(data.frame(tau = tau[,1]), X)

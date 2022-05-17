@@ -1,4 +1,4 @@
-source("./bin/load_RCT/NCT00041119_chemo.R")
+source("./bin/load_RCT/load_NCT00041119_chemo.R")
 
 W <- as.numeric(eval$indrx == 2 | eval$indrx == 4) # Experimental arm is: 2=CA-6 or 4=T-6
 
@@ -13,3 +13,5 @@ for (outcome in NCT00041119_length_outcomes) {
         assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
     }
 }
+
+save(NCT00041119_length, NCT00041119_length_outcomes, OS_Y_list, RFS_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00041119_length.RData")

@@ -2,10 +2,13 @@
 source("./bin/load_lib.R")
 source("./bin/heterogeneity_presence_test.R")
 
-trial_hte_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
-                "NCT00460265", # CF takes a long time
-                "NCT00041119_length", "NCT00041119_chemo",
-                "NCT00003299", "NCT00119613")
+# old list
+# trial_hte_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
+#                 "NCT00460265", # CF takes a long time
+#                 "NCT00041119_length", "NCT00041119_chemo",
+#                 "NCT00003299", "NCT00119613")
+
+trial_hte_ls <- c("NCT00003299", "NCT00041119_chemo","NCT00041119_length", "NCT00052910","NCT00079274", "NCT00113763","NCT00115765_oxa", "NCT00115765","NCT00119613", "NCT00339183_mt_KRAS", "NCT00339183_wt_KRAS", "NCT00364013", "NCT00460265" )
 
 var_res_df <- data.frame(trial_name = character(), stat = numeric(), pval = numeric())
 for (trial in trial_hte_ls) {
@@ -13,17 +16,16 @@ for (trial in trial_hte_ls) {
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
     
-    source(paste0("./bin/load_RCT/load_", trial, ".R"))
-    X <- as.matrix(get(trial)[[1]])
-    Y <- get(trial)[[2]][[1]]
-    W <- get(trial)[[3]]
+    load(paste0("./bin/load_RCT/RCT_obj/", trial, ".RData"))
+    Y <- PFS_Y_list[[1]]
+    W <- get(trial)[[2]]
     # variance ratio test
     vrt_res <- variance_ratio_test(Y = Y, Z = W)
     var_res_df <- rbind(var_res_df, c(trial, vrt_res))
     
 }
 colnames(var_res_df) <- c("trial", "kurtosis_stat", "kurtosis_pval")
-write.csv(var_res_df, "./res/variance_ratio_test.csv", row.names = FALSE)
+write.csv(var_res_df, "./res_PFS_only/variance_ratio_test.csv", row.names = FALSE)
 
 
 ## Omnibus test for systemic variations

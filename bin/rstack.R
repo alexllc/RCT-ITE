@@ -19,7 +19,7 @@ source("./bin/mod_causalboost.R")
 #' @param tune_ptof_param bool whether PTO forest parameters should be tuned or use default 
 #' @param perform_xb bool whether X-learner boosting should be performed. This is skipped in our analysis because it requires huge resources and time without the guarantee of good performance.
 
-perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = FALSE) {
+perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outcome = NULL, imp_type_Y = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = FALSE) {
 
     available_sample <- 1:dim(X)[1]
     cf_tau <- data.frame(ID = available_sample)
@@ -78,7 +78,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, prob
             cb_param <- cb_param[which(cb_param$mean_cvm_effect == min(cb_param$mean_cvm_effect)),]
             cb_param <- list(num.trees = cb_param$num_trees_min_effect, maxleaves = cb_param$max_leaves, eps = cb_param$eps, splitSpread = cb_param$split_spread)
         } else { # use default setting
-            cb_param_tune_res <- read.csv(paste0("./dat/cb_param/", trial_name, "_cb_param.csv")) # if skipping parameters tuning, we will use the previously tuned parameter for this trial
+            cb_param_tune_res <- read.csv(paste0("./dat/cb_param/", trial, "_", imp_type_Y, "_", outcome, "_cb_param.csv")) # if skipping parameters tuning, we will use the previously tuned parameter for this trial
             cb_param_tune_res <- filter(cb_param_tune_res, num_trees_min_effect != 1) # avoid using parameteres with only 1 boosting tree
             cb_param <- cb_param_tune_res[which.min(cb_param_tune_res$mean_cvm_effect),]
             cb_param <- list(num.trees = cb_param$num_trees_min_effect, maxleaves = cb_param$max_leaves, eps = cb_param$eps, splitSpread = cb_param$split_spread)
@@ -115,6 +115,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, prob
                     param_counter <- 0
                 }
             }
+            write.csv(cm_cv_performance, file = paste0(paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_cm_params_used.csv")))
 
         } else {
             cm <- causalMARS(x = train_X, tx = train_W, y = train_Y)
@@ -145,6 +146,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, prob
                 rebuild_ptof <- FALSE
             }
         }
+        write.csv(ptof_param_search, file = paste0(paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_ptof_params_used.csv")))
 
         if (class(ptof) == "try-error" | class(ptof_tau_pred) == "try-error") {
             print("Cannot build this model.")

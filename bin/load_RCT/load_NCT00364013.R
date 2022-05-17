@@ -119,3 +119,6 @@ for (outcome in NCT00364013_outcomes) {
         RSP_Y_list <- list(imp_df$rsp_avg, NA, NA)
     }
 }
+
+
+save(NCT00364013, NCT00364013_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00364013.RData")

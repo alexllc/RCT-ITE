@@ -122,7 +122,7 @@ X$SUBJID <- NULL
 X <- missing_too_much(X)
 X_imp <- impute_df_missing(clin_df = as.data.frame(X), save_ddt = FALSE)
 
-keyvar <- keyvar[keybar$SUBJID %in% SUBJID_sel,]
+keyvar <- keyvar[keyvar$SUBJID %in% SUBJID_sel,]
 W <- as.numeric(keyvar$TXGROUP == "NESP")
 
 # Export dataset
@@ -156,3 +156,5 @@ for (outcome in NCT00119613_outcomes) {
         assign(paste0(outcome, "_Y_list"), list(imp_df[[outcome]], NA, NA))
     }
 }
+
+save(NCT00119613, NCT00119613_outcomes, OS_Y_list, PFS_Y_list, CHHB_Y_list, FATCHG_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00119613.RData")
