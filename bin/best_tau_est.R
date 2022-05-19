@@ -17,9 +17,9 @@ perform_xb = FALSE
 #                 "NCT00041119_length", "NCT00041119_chemo",
 #                 "NCT00003299", "NCT00119613")
 
-# done: 
+# done: "NCT00052910", "NCT00113763", "NCT00460265","NCT00364013",  "NCT00115765", "NCT00339183"
 # pending: "NCT00115765_oxa", 
-trial_ls <- c("NCT00052910", "NCT00113763", "NCT00460265","NCT00364013",  "NCT00115765", "NCT00339183")
+trial_ls <- c("NCT00364013_wtKRAS")
 
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
 # find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = TRUE) {
@@ -45,7 +45,7 @@ for (trial in trial_ls) {
 
         Y_list <- get(paste0(outcome, "_Y_list"))
 
-        imp_type_Y <- "efron+Yn"
+        imp_type_Y <- "efronYn"
         Y <- as.numeric(Y_list[[2]]) # use Efron+Yn if available
 
         if (any(is.na(Y))) { # either does not have largest censroed outcome or it is not a time to event type outcome

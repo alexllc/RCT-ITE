@@ -2,15 +2,18 @@
 source("./bin/load_lib.R")
 library(ggpubr)
 
-trial_list <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
-                "NCT00460265", # CF takes a long time
-                "NCT00041119_length", "NCT00041119_chemo",
-                "NCT00003299", "NCT00119613")
+# trial_list <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
+#                 "NCT00460265", # CF takes a long time
+#                 "NCT00041119_length", "NCT00041119_chemo",
+#                 "NCT00003299", "NCT00119613")
 
 # SIG TRIALS only
 #  trial_list <- c("NCT00460265", "NCT00364013", "NCT00113763")
 
-min_mse_method <- read.csv("./res_PFS_only/crossfit_rloss/best_tau_estimators.csv")
+min_mse_method <- read.csv("./res/best_tau_estimators.csv")
+trial_choice <- filter(min_mse_method, mse < 150)
+colnames(trial_choice)[1] <- "trialID"
+
 tau_summary <- data.frame(trial = character(), Min = numeric(), FirstQu = numeric(), Median  = numeric(), Mean  = numeric(), ThirdQu = numeric(), Max = numeric())
 
 for (trial in trial_list) {

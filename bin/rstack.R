@@ -197,14 +197,20 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         # R-learner of boosting
         #
 
-        rb <- rboost(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat, nthread = 40)
+        rb <- try(rboost(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat, nthread = 40))
+        while(class(rb) == "try-error") {
+            rb <- try(rboost(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat, nthread = 40))
+        }
         rb_tau <- predict(rb, ho_X)
 
         #
         # R-learner of LASSO
         #
 
-        rl <- rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat)
+        rl <- try(rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat))
+        while(class(rl) == "try-error") {
+            rl <- try(rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat))
+        }
         rl_tau <- predict(rl, ho_X)[,1]
 
 
@@ -212,7 +218,10 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         # RS-learner of LASSO
         #
 
-        rl_RS <- rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat, rs = TRUE) # returned same predictions for all patients
+        rl_RS <- try(rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat, rs = TRUE)) # returned same predictions for all patients
+        while(class(rl_RS) == "try-error") {
+            rl_RS <- try(rlasso(train_X, train_W, train_Y, p_hat = prob, m_hat = mhat, rs = TRUE))
+        }
         rl_RS_tau <- predict(rl_RS, ho_X)[,1]
 
 

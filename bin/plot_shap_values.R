@@ -7,7 +7,9 @@ library("data.table"); library("here"); library("svglite")
 
 trial_hte_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",  "NCT00460265", "NCT00041119_length", "NCT00041119_chemo", "NCT00003299", "NCT00119613")
 
-min_mse_method <- read.csv("./res_PFS_only/crossfit_rloss/best_tau_estimators.csv")
+min_mse_method <- read.csv("./res/best_tau_estimators.csv")
+trial_choice <- filter(min_mse_method, mse < 150)
+colnames(trial_choice)[1] <- "trialID"
 
 
 for (trial in trial_hte_ls) {

@@ -18,7 +18,7 @@ Q = 4
 
 
 # "NCT00364013", add RSP as outcome later
-trial_ls <- c("NCT00339183")
+trial_ls <- c("NCT00364013_wtKRAS")
 
 for (trial in trial_ls) {
     # For testing only:
@@ -47,7 +47,7 @@ for (trial in trial_ls) {
         
         Y_list <- get(paste0(outcome, "_Y_list"))
 
-        imp_type_Y <- "efron+Yn"
+        imp_type_Y <- "efronYn"
         Y <- as.numeric(Y_list[[2]]) # use Efron+Yn if available
 
         if (any(is.na(Y))) { # either does not have largest censroed outcome or it is not a time to event type outcome
