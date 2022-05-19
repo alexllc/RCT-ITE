@@ -12,17 +12,25 @@ trial_choice <- filter(min_mse_method, mse < 150)
 colnames(trial_choice)[1] <- "trialID"
 
 
-for (trial in trial_hte_ls) {
+for (j in 1:dim(trial_choice)[1]) {
+
+    trial <- trial_choice[j,1]
     message(paste0(rep("=", 80)))
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
     
     load(paste0("./bin/load_RCT/RCT_obj/", trial, ".RData"))
+    if (!file.exists(paste0("./bin/load_RCT/RCT_obj/", trial, ".RData"))) {
+        source(paste0("./bin/load_RCT/load_", trial, ".R"))
+    } else {
+        load(paste0("./bin/load_RCT/RCT_obj/", trial, ".RData"))
+    }
     X <- as.matrix(get(trial)[[1]])
     W <- get(trial)[[2]]
-    Y <- PFS_Y_list[[1]]
 
-    tau <- read.csv(paste0("./res_PFS_only/ite_tau_estimates/", trial, "_", min_mse_method[min_mse_method$trial == trial, "best_tau_method"], "_tau_estimates.csv"))
+    outcome <- trial_choice[j,4]
+    trial_best_method <- trial_choice[j,2]
+    tau <- read.csv(paste0("./res/ite_tau_estimates/", trial, "_", outcome, "_", trial_best_method, "_tau_estimates.csv"))
 
     # Omnibus test for systemic variations
     lm_df <- cbind(data.frame(tau = tau[,1]), X)

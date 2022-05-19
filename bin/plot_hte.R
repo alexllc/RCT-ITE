@@ -38,7 +38,7 @@ colnames(tau_summary) <-  c("Trial", "Min", "1stQu", "Median", "Mean", "3rdQu", 
     W <- get(trial)[[3]]
     # plot distribution of tau values
 
-    plot_df <- data.frame(SUBJID = 1:length(tau), tau = tau, sign = ifelse(W, "Treatment", "Control"))
+    plot_df <- data.frame(SUBJID = 1:length(tau), tau = tau, sign = ifelse(W, "Intervention", "Control"))
 
     pdf(file = paste0(trial, "_", tau_method, "_plot.pdf"), width = 30, height = 20)
     print(ggbarplot(plot_df, x = "SUBJID", y = "tau",
@@ -50,8 +50,8 @@ colnames(tau_summary) <-  c("Trial", "Min", "1stQu", "Median", "Mean", "3rdQu", 
             x.text.angle = 90,          # Rotate vertically x axis texts
             ylab = trial,
             xlab = FALSE,
-            legend.title = "TE"
-            ) + theme(axis.text.x=element_blank()) + geom_hline(yintercept=1.6,         color = "red", size=2)
+            legend.title = "Treatment assignment"
+            ) + theme(axis.text.x=element_blank()) + geom_hline(yintercept=mean(tau),         color = "red", size=2)
             )
     dev.off()
 }
