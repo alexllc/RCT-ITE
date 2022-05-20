@@ -195,14 +195,20 @@ prob <- 0.5
 #                 "NCT00041119_length", "NCT00041119_chemo",
 #                 "NCT00003299", "NCT00119613")
 
-trial_choice <- filter(min_mse_method, mse < 150)
+pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT00460265")
+trial_choice <- filter(min_mse_method, trial %in% pos_report)
 colnames(trial_choice)[1] <- "trialID"
 
 
-
-for (j in 12:dim(trial_choice)[1]) {
+for (j in 1:dim(trial_choice)[1]) {
 
     trial <- trial_choice[j,1]
+    outcome <- trial_choice[j,4]
+    best_ite_model <- trial_choice[j,2]
+    if (file.exists(paste0("./res/ite_tau_estimates/", trial, "_", outcome, "_", best_ite_model, "_tau_estimates.csv")))
+        next
+    print(paste("No ITE calculated:", trial, outcome, best_ite_model, sep = " "))
+
     message(paste0(rep("=", 80)))
     message(paste0("Running trial: ", trial))
     message(paste0(rep("=", 80)))
@@ -215,13 +221,12 @@ for (j in 12:dim(trial_choice)[1]) {
     X <- as.matrix(get(trial)[[1]])
     W <- get(trial)[[2]]
 
-    outcome <- trial_choice[j,4]
 
     message(paste0("Processing outcome: ", outcome))
 
     Y_list <- get(paste0(outcome, "_Y_list"))
 
-    imp_type_Y <- "efron+Yn"
+    imp_type_Y <- "efronYn"
     Y <- as.numeric(Y_list[[2]]) # use Efron+Yn if available
 
     if (any(is.na(Y))) { # either does not have largest censroed outcome or it is not a time to event type outcome
@@ -244,6 +249,6 @@ for (j in 12:dim(trial_choice)[1]) {
         tau <- perform_rstack(Y = Y, X = X, W = W, trial_name = trial, outcome = outcome, imp_type_Y = imp_type_Y)
     }
 
-    write.csv(tau, paste0(trial, "_", outcome, "_", best_ite_model, "_tau_estimates.csv"), row.names = FALSE)
+    write.csv(tau, paste0("./res/ite_tau_estimates/", trial, "_", outcome, "_", best_ite_model, "_tau_estimates.csv"), row.names = FALSE)
 }
 
