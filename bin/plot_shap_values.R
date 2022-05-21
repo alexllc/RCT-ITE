@@ -5,10 +5,9 @@ library("SHAPforxgboost"); library("ggplot2"); library("xgboost")
 library("data.table"); library("here"); library("svglite")
 })
 
-trial_hte_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",  "NCT00460265", "NCT00041119_length", "NCT00041119_chemo", "NCT00003299", "NCT00119613")
-
 min_mse_method <- read.csv("./res/best_tau_estimators.csv")
-trial_choice <- filter(min_mse_method, mse < 150)
+pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT00460265")
+trial_choice <- filter(min_mse_method, trial %in% pos_report)
 colnames(trial_choice)[1] <- "trialID"
 
 
@@ -35,13 +34,20 @@ for (j in 1:dim(trial_choice)[1]) {
     # Omnibus test for systemic variations
     lm_df <- cbind(data.frame(tau = tau[,1]), X)
     taulm <- lm(tau ~ ., data = lm_df)
-    stev <- try(wald.test(Sigma = vcov(taulm), b = coef(taulm), Terms = 2:dim(X)[2]))
+    # stev <- try(wald.test(Sigma = vcov(taulm), b = coef(taulm), Terms = 2:dim(X)[2]))
     print(summary(taulm))
-    if (stev != "try-error") {
-        print(stev)
+
+    if (j == 1) {
+        omnibus <- glance(taulm)
     } else {
-        print("Can't perform Wald!")
+        omnibus <- rbind(omnibus, glance(taulm))
     }
+
+    # if (class(stev) != "try-error") {
+    #     print(stev)
+    # } else {
+    #     print("Can't perform Wald!")
+    # }
 
     sig_coeff <- c()
     # likelihood test by eliminating covaraites from model
@@ -50,14 +56,25 @@ for (j in 1:dim(trial_choice)[1]) {
         model_reduced <- lm(as.formula(paste0("tau ~ . - `", covar, "`")), data = lm_df)
         lrtres <- lrtest(taulm, model_reduced)
         #perform likelihood ratio test for differences in models
-        print(lrtres)
+        if (covar == colnames(X)[1]) {
+            lrt_df <- tidy(lrtres)
+        } else {
+            lrt_df <- rbind(lrt_df, tidy(lrtres)[2,])
+        }
         if (lrtres$`Pr(>Chisq)`[2] < 0.05) {
             sig_coeff <- c(sig_coeff, covar)
         }
     }
+    lrt_df <- cbind(c("full model", colnames(X)), lrt_df)
+    colnames(lrt_df) <- c("Covariate", "DF", "LogLik", "diff", "statistic", "p-value")
+    write.csv(lrt_df, file = paste0("./res/omnibus/lrt/", trial, "_", outcome, "_", trial_best_method, "_LRT.csv"), row.names = FALSE)
 
+omnibus <- cbind(trial_choice[,c(1,4)], omnibus)
+write.csv(omnibus, file = paste0("./res/omnibus/", "omnibus_res.csv"), row.names = FALSE)
     # XGBoost to decompose effect modifier
-    xgb_res <- readRDS(paste0("./dat/xgb_model/", trial, "_xgb_model.rds")) # generated from cvboost(x = X, y = tau[,1], objective="reg:squarederror")
+    xgb_res <- try(readRDS(paste0("./dat/xgb_model/", trial, "_", outcome, "_", trial_best_method, "_xgb_model.rds"))) # generated from cvboost(x = X, y = tau[,1], objective="reg:squarederror")
+    if (class(xgb_res) == "try-error")
+        next
     
     mod <- xgb_res$xgb_fit
     shap_values <- shap.values(xgb_model = mod, X_train = X)
@@ -74,17 +91,17 @@ for (j in 1:dim(trial_choice)[1]) {
     shap_long <- shap.prep(shap_contrib = shap_values$shap_score, X_train = X)
 
     # summary plot
-    svglite(paste0("./res/plot/", trial, "/", trial, "_shap_plot.svg"))
+    svglite(paste0("./res/shap_plots/", trial, "_", outcome, "_", trial_best_method, "_shap_plot.svg"))
     print(shap.plot.summary(shap_long))
     dev.off()
-, height = ceiling(8 * length(sig_coeff) / 4)
+    # , height = ceiling(8 * length(sig_coeff) / 4)
     if (length(sig_coeff > 1)) {
         
         # multiple interactions
-        svglite(paste0("./res/plot/", trial, "/", trial, "_multi-int_plot.svg"))
+        svglite(paste0("./res/shap_plots/", trial, "_", outcome, "_", trial_best_method, "_multi-int_plot.svg"))
         fit_list <- lapply(sig_coeff, 
                         shap.plot.dependence, data_long = shap_long, color_feature = 'auto')
-        gridExtra::grid.arrange(grobs = fit_list, ncol = 2)
+        gridExtra::grid.arrange(grobs = fit_list, ncol = 3)
         dev.off()
     }
 }
