@@ -11,7 +11,6 @@ pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT
 trial_choice <- filter(min_mse_method, trial %in% pos_report)
 colnames(trial_choice)[1] <- "trialID"
 
-j <- 10
 # for (j in 1:dim(trial_choice)[1]) {
 
     trial <- trial_choice[j,1]

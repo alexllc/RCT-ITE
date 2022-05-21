@@ -18,7 +18,7 @@ Q = 4
 
 
 # "NCT00364013", add RSP as outcome later
-trial_ls <- c("NCT00364013_wtKRAS")
+trial_ls <- c("NCT00041119_length")
 
 for (trial in trial_ls) {
     # For testing only:

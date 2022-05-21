@@ -19,7 +19,7 @@ perform_xb = FALSE
 
 # done: "NCT00052910", "NCT00113763", "NCT00460265","NCT00364013",  "NCT00115765", "NCT00339183"
 # pending: "NCT00115765_oxa", 
-trial_ls <- c("NCT00364013_wtKRAS")
+trial_ls <- c("NCT00041119_length")
 
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
 # find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = TRUE) {
@@ -37,7 +37,8 @@ for (trial in trial_ls) {
     }
     X <- as.matrix(get(trial)[[1]])
     W <- get(trial)[[2]]
-    outcome_list <- get(paste0(trial, "_outcomes"))
+    # outcome_list <- get(paste0(trial, "_outcomes"))
+    outcome_list <- c("OS", "RFS")
 
     for (outcome in outcome_list) {
 
