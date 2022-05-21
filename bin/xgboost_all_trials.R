@@ -7,11 +7,12 @@ source("./bin/load_lib.R")
 # trial_hte_ls <- c("NCT00113763")
 
 min_mse_method <- read.csv("./res/best_tau_estimators.csv")
-trial_choice <- filter(min_mse_method, mse < 150)
+pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT00460265")
+trial_choice <- filter(min_mse_method, trial %in% pos_report)
 colnames(trial_choice)[1] <- "trialID"
 
-
-for (j in 1:dim(trial_choice)[1]) {
+j <- 10
+# for (j in 1:dim(trial_choice)[1]) {
 
     trial <- trial_choice[j,1]
     message(paste0(rep("=", 80)))
@@ -50,4 +51,4 @@ for (j in 1:dim(trial_choice)[1]) {
     xgb_res <- cvboost(x = X, y = tau_vec, objective="reg:squarederror")
     saveRDS(xgb_res, file = paste0("./dat/xgb_model/", trial, "_", outcome, "_", trial_best_method, "_xgb_model.rds"))
     message("XGBoost model saved.")
-}
+# }
