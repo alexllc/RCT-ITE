@@ -32,6 +32,12 @@ for (j in 1:dim(trial_choice)[1]) {
     tau <- read.csv(paste0("./res/ite_tau_estimates/", trial, "_", outcome, "_", trial_best_method, "_tau_estimates.csv"))
 
     # Omnibus test for systemic variations
+    cv_model <- cv.glmnet(X, tau[,1], keep = TRUE, family = "gaussian")
+    best_lambda <- cv_model$lambda.min
+    best_model <- glmnet(X, tau[,1], alpha = 1, lambda = best_lambda)
+    lasso_coeff <- coef(best_model)
+    lasso_coeff <- lasso_coeff[2:length(lasso_coeff)]
+    X <- X[,lasso_coeff != 0]
     lm_df <- cbind(data.frame(tau = tau[,1]), X)
     taulm <- lm(tau ~ ., data = lm_df)
     # stev <- try(wald.test(Sigma = vcov(taulm), b = coef(taulm), Terms = 2:dim(X)[2]))
