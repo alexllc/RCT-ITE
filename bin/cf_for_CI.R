@@ -62,6 +62,6 @@ for (j in 1:dim(trial_choice)[1]) {
 }
 
 ci_df <- cbind(select(trial_choice, c("trialID", "outcome_type")), ci_df)
-report_ci <- data.table(ci_df) %>% mutate_if(is.numeric, ~round(.,2)) %>%  mutate(min_ci = paste0(Min., " (", Min. - var.min, " to ", Min. + var.min, ")")) %>% mutate(med_ci = paste0(Median, " (", Median - var.med, " to ", Median + var.med, ")")) %>% mutate(mean_ci = paste0(Mean, " (", Mean - var.mean, " to ", Mean + var.mean, ")")) %>% mutate(max_ci = paste0(Max., " (", Max. - var.max, " to ", Max. + var.max, ")")) %>% select(c("trialID", "outcome_type", "min_ci", "med_ci", "mean_ci", "max_ci"))
+report_ci <- data.table(ci_df) %>% mutate_if(is.numeric, ~round(.,2)) %>%  mutate(min_ci = paste0(Min., " (", Min. - 2*var.min, " to ", Min. + 2*var.min, ")")) %>% mutate(med_ci = paste0(Median, " (", Median - 2*var.med, " to ", Median + 2*var.med, ")")) %>% mutate(mean_ci = paste0(Mean, " (", Mean - 2*var.mean, " to ", Mean + 2*var.mean, ")")) %>% mutate(max_ci = paste0(Max., " (", Max. - 2*var.max, " to ", Max. + 2*var.max, ")")) %>% select(c("trialID", "outcome_type", "min_ci", "med_ci", "mean_ci", "max_ci"))
 
 write.csv(report_ci, "./res/ite_tau_estimates/ITE_sum_CI.csv", row.names = FALSE)
