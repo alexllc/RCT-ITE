@@ -35,6 +35,7 @@ for (j in 1:dim(trial_choice)[1]) {
 
     trial_best_method <- trial_choice[j,2]
     tau <- read.csv(paste0("./res/ite_tau_estimates/", trial, "_", outcome, "_", trial_best_method, "_tau_estimates.csv"))
+
     # Build causal forest
     cf <- causal_forest(X, Y, W, num.trees = 100000, tune.parameters = "all")
     cf_tau_pred <- predict(cf, estimate.variance =  TRUE)
@@ -50,7 +51,7 @@ for (j in 1:dim(trial_choice)[1]) {
     tauci <- c(cf_tau_pred$variance.estimates[minid], cf_tau_pred$variance.estimates[medid], cf_tau_pred$variance.estimates[meanid], cf_tau_pred$variance.estimates[maxid])
     names(tauci) <- c("var.min", "var.med", "var.mean", "var.max")
 
-    rtau <- c(summary(tau[,1])[c(1,3,4,6)], tauci)
+    rtau <- c(summary(tau[,1])[c(1,3,4,6)], tauci, var(tau[,1]))
     
     
     if (j ==1){
