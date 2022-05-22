@@ -74,6 +74,7 @@ for (j in 1:dim(trial_choice)[1]) {
     lrt_df <- cbind(c("full model", colnames(X)), lrt_df)
     colnames(lrt_df) <- c("Covariate", "DF", "LogLik", "diff", "statistic", "p-value")
     write.csv(lrt_df, file = paste0("./res/omnibus/lrt/", trial, "_", outcome, "_", trial_best_method, "_LRT.csv"), row.names = FALSE)
+}
 
 omnibus <- cbind(trial_choice[,c(1,4)], omnibus)
 write.csv(omnibus, file = paste0("./res/omnibus/", "omnibus_res.csv"), row.names = FALSE)
