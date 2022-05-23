@@ -8,9 +8,10 @@ source("./bin/mod_causalboost.R")
 prob = 0.5
 Q = 4
 tuned_cb_param = FALSE
-tuned_cm_param = FALSE
-tune_ptof_param = FALSE
+tuned_cm_param = TRUE
+tune_ptof_param = TRUE
 perform_xb = FALSE
+
 # 
 # trial_ls <- c("NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274",
 #                 "NCT00460265",
@@ -18,8 +19,8 @@ perform_xb = FALSE
 #                 "NCT00003299", "NCT00119613")
 
 # done: "NCT00052910", "NCT00113763", "NCT00460265","NCT00364013",  "NCT00115765", "NCT00339183"
-# pending: "NCT00115765_oxa", 
-trial_ls <- c("NCT00041119_length")
+# pending: "NCT00115765_oxa", "NCT00364013", "NCT00460265", 
+trial_ls <- c("NCT00041119_chemo", "NCT00041119_length")
 
 # Function to find the best tau predictor using R-loss criteria averaging over several folds
 # find_best_tau_estimator <- funciton(Y = NULL, X = NULL, W = NULL, prob = 0.5, Q = 4, tuned_cb_param = TRUE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = TRUE) {
@@ -37,11 +38,9 @@ for (trial in trial_ls) {
     }
     X <- as.matrix(get(trial)[[1]])
     W <- get(trial)[[2]]
-    # outcome_list <- get(paste0(trial, "_outcomes"))
-    outcome_list <- c("OS", "RFS")
+    outcome_list <- get(paste0(trial, "_outcomes"))
 
     for (outcome in outcome_list) {
-
         message(paste0("Processing outcome: ", outcome))
 
         Y_list <- get(paste0(outcome, "_Y_list"))
@@ -53,11 +52,11 @@ for (trial in trial_ls) {
             Y <- as.numeric(Y_list[[1]])
             imp_type_Y <- "efron"
         }
-
+        
         # We need to take out 1/Q sample as the holdout test data, the rest of the samples are used for training
         
         ho_matrix <- read.csv(paste0("./dat/cv_ho_ids/est_tau_", trial, "_holdout_id.csv"))
-
+        
         for (iter in 1:Q) {
             
             tau_ls <- list()
@@ -69,7 +68,8 @@ for (trial in trial_ls) {
             
             holdout_sample <- ho_matrix[,iter]
             available_sample <- seq(1:dim(X)[1])
-            train_sample <- available_sample[!available_sample %in% holdout_sample]
+            holdout_sample <- sample(seq(1:dim(X)[1]), floor(dim(X)[1] / 4))
+            train_sample <- available_sample[!available_sample %in% holdout_sample] 
 
             ho_X <- X[holdout_sample,]
             ho_W <- W[holdout_sample]
@@ -90,7 +90,11 @@ for (trial in trial_ls) {
             Y_boost <- cvboost(train_X, train_Y, objective = "reg:squarederror", nthread = 40) # non-binary outcome
             Y_hat_boost <- predict(Y_boost, newx = ho_X)
 
-            Y_lasso <- cv.glmnet(train_X, train_Y, keep = TRUE, family = "gaussian")
+            if (!(imp_type_Y == "efronYn" | imp_type_Y == "efron")) {
+                Y_lasso <- cv.glmnet(train_X, train_Y, keep = TRUE, family = "binomial")
+            } else {
+                Y_lasso <- cv.glmnet(train_X, train_Y, keep = TRUE, family = "gaussian")
+            }
             Y_hat_lasso <- predict(Y_lasso, newx = ho_X)[,1]
 
             # which method has a smaller CV error?
@@ -164,7 +168,7 @@ for (trial in trial_ls) {
             message(paste0(rep("=", 80)))
             message(paste0("Building Performing causal MARS."))
             message(paste0(rep("=", 80)))
-            if (tuned_cm_param | !file.exists(paste0("./res/params/", trial, "_cm_params.csv"))){
+            if (tuned_cm_param | !file.exists(paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_cm_params.csv"))){
                 cm_cv_performance <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
                 cm_param_used <- as.list(cm_cv_performance[1,1:3]) # choose smallest first
                 cm <- try(do.call(causalMARS, append(list(x = train_X, tx = train_W, y = train_Y), cm_param_used)))
@@ -203,14 +207,14 @@ for (trial in trial_ls) {
             message(paste0(rep("=", 80)))
             message(paste0("Building PTOForest."))
             message(paste0(rep("=", 80)))
-            if (tune_ptof_param | !file.exists(paste0("./res/params/", trial, "_ptof_params.csv"))) {
+            if (tune_ptof_param | !file.exists(paste0("./res/params/",  trial, "_", imp_type_Y, "_", outcome, "_ptof_params.csv"))) {
                 ptof_param_search <- find_ptof_param(x = train_X, y = train_Y, tx = train_W, validation_fold = 4, num_search_rounds = 50)
                 ptof_param <- ptof_param_search[1, 1:3]
                 ptof_param <- list(num.trees = ptof_param$num_trees, mtry = ptof_param$mtry, min.node.size = ptof_param$min_node_size)
                 ptof <- try(do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = FALSE, verbose = TRUE), ptof_param))) # sometimes PTO forest can fail to produce some estimates with holdout data
-                write.csv(ptof_param_search, paste0("./res/params/", trial, "_ptof_params.csv"), row.names = FALSE)
+                write.csv(ptof_param_search, paste0("./res/params/",  trial, "_", imp_type_Y, "_", outcome, "_ptof_params.csv"), row.names = FALSE)
             } else {
-                ptof_param_search <- read.csv(paste0("./res/params/", trial, "_ptof_params.csv"))
+                ptof_param_search <- read.csv(paste0("./res/params/",  trial, "_", imp_type_Y, "_", outcome, "_ptof_params.csv"))
                 ptof_param <- ptof_param_search[1, 1:3]
                 ptof_param <- list(num.trees = ptof_param$num_trees, mtry = ptof_param$mtry, min.node.size = ptof_param$min_node_size)
                 ptof <- try(do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = FALSE, verbose = TRUE), ptof_param))) # sometimes PTO forest can fail to produce some estimates with holdout data

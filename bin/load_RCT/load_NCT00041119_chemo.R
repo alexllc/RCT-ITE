@@ -14,6 +14,8 @@ X_imp <- impute_df_missing(clin_df = X, save_ddt = FALSE)
 
 # Only compare CA vs Paclitaxel
 W <- as.numeric(eval$indrx == 3 | eval$indrx == 4) # Experimental arm is: 3=T-4 or 4=T-6
+cycle_type <- as.numeric(eval$indrx == 2 | eval$indrx == 4) # Experimental arm is: 2=CA-6 or 4=T-6
+X_imp <- cbind(X_imp, cycle_type)
 
 NCT00041119_chemo <- list(X_imp, W)
 
@@ -27,7 +29,7 @@ dth[dth == 2] <- 1
 OS <- data.frame(T = eval$survmos, C = dth)
 AE <- eval$total_ae_grade
 
-NCT00041119_chemo_outcomes <- c("RFS", "OS", "AE")
+NCT00041119_chemo_outcomes <- c("RFS", "OS")
 
 for (outcome in NCT00041119_chemo_outcomes) {
     if (outcome != "AE") {
@@ -37,4 +39,4 @@ for (outcome in NCT00041119_chemo_outcomes) {
     }
 }
 
-save(NCT00041119_chemo, NCT00041119_chemo_outcomes, OS_Y_list, RFS_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00041119_chemo.RData")
+save(NCT00041119_chemo, NCT00041119_chemo_outcomes, OS_Y_list, RFS_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00041119_chemo.RData")

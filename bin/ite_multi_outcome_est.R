@@ -111,12 +111,16 @@ perform_cb <- function(X, W, Y, outcome = NULL, Q = 4, prob = 0.5) {
 }
 
 # Function to determine whether to use boosting or LASSO to derive mhat
-get_mhat <- function(X_train, W_train, Y_train, X_ho, Y_ho) {
+get_mhat <- function(X_train, W_train, Y_train, X_ho, Y_ho, binary_Y = FALSE) {
 
     Y_boost <- cvboost(X_train, Y_train, objective = "reg:squarederror", nthread = 40) # non-binary outcome
     Y_hat_boost <- predict(Y_boost, newx = X_ho)
-
-    Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "gaussian")
+    
+    if (binary_Y) {
+        Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "binomial")
+    } else {
+        Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "gaussian")
+    }
     Y_hat_lasso <- predict(Y_lasso, newx = X_ho)[,1]
 
     # which method has a smaller CV error?

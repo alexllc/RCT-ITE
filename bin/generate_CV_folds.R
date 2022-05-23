@@ -4,7 +4,7 @@
 source("./bin/load_lib.R")
 Q <- 4
 # "NCT00003299", "NCT00041119_chemo","NCT00041119_length", "NCT00052910","NCT00079274", "NCT00113763","NCT00115765_oxa", "NCT00115765","NCT00119613", "NCT00339183_mt_KRAS", "NCT00339183_wt_KRAS", "NCT00364013", "NCT00460265" 
-trial_ls <- c("NCT00364013_wtKRAS")
+trial_ls <- c("NCT00364013", "NCT00460265", "NCT00041119_chemo", "NCT00041119_length")
 
 for (trial in trial_ls) {
 

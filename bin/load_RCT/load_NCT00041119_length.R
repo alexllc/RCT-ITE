@@ -1,10 +1,12 @@
 source("./bin/load_RCT/load_NCT00041119_chemo.R")
 
 W <- as.numeric(eval$indrx == 2 | eval$indrx == 4) # Experimental arm is: 2=CA-6 or 4=T-6
+chemo_type <- NCT00041119_chemo[[2]] # CA = 1 vs Paclitaxel = 0
+X_imp <- cbind(X_imp, chemo_type)
 
 NCT00041119_length <- list(X_imp, W)
 
-NCT00041119_length_outcomes <- c("RFS", "OS", "AE")
+NCT00041119_length_outcomes <- c("RFS", "OS")
 
 for (outcome in NCT00041119_length_outcomes) {
     if (outcome != "AE") {
@@ -14,4 +16,4 @@ for (outcome in NCT00041119_length_outcomes) {
     }
 }
 
-save(NCT00041119_length, NCT00041119_length_outcomes, OS_Y_list, RFS_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00041119_length.RData")
+save(NCT00041119_length, NCT00041119_length_outcomes, OS_Y_list, RFS_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00041119_length.RData")

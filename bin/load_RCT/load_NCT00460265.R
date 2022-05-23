@@ -22,7 +22,7 @@ for (sheet in datals) {
 #
 # Core variables all patients have data in
 #
-cv <- dplyr::select(corevar, all_of(c("SUBJID", "AGE", "SEX", "RACE", "PRHNTRTC", "TRTDUR", "B_ECOGCT", "DIAGTYCD", "TUMCAT", "DSTATUS", "PMAB", "HPVCD")))
+cv <- dplyr::select(corevar, all_of(c("SUBJID", "AGE", "SEX", "RACE", "PRHNTRTC", "B_ECOGCT", "DIAGTYCD", "TUMCAT", "PMAB", "HPVCD")))
 
 # most the variable entries for EGFR related info is missing, no need to include
 # for (colid in 1:dim(demo)[2]) {
@@ -38,11 +38,11 @@ dem <- dplyr::select(demo, all_of(c("SUBJID", "B_WEIGHT", "B_HEIGHT", "B_BSA", "
 #
 # Baseline lab results
 #
-bl_lab <- filter(lab, LBBASE == "Y")
-bl_lab <- bl_lab %>% replace_with_na_all(condition = ~.x %in% na_strings)
-bl_lab <- dplyr::select(bl_lab, all_of(c("SUBJID", "LBTEST", "LBBLRES")))
-bl_lab <- spread(bl_lab, LBTEST, LBBLRES)
-colnames(bl_lab) <- gsub(" ", "_", colnames(bl_lab))
+# bl_lab <- filter(lab, LBBASE == "Y")
+# bl_lab <- bl_lab %>% replace_with_na_all(condition = ~.x %in% na_strings)
+# bl_lab <- dplyr::select(bl_lab, all_of(c("SUBJID", "LBTEST", "LBBLRES")))
+# bl_lab <- spread(bl_lab, LBTEST, LBBLRES)
+# colnames(bl_lab) <- gsub(" ", "_", colnames(bl_lab))
 
 #
 # Eligible patients
@@ -97,8 +97,8 @@ surgh <- spread(surgh, SXTYPE, surgtype_count) %>% dplyr::select(-"<NA>")
 
 #
 # Join and combine all baseline characteristics
-#
-cleaned_dat <- c("bl_lab", "elig", "bl_ls", "current_mh", "chany", "otany", "raany", "surgh")
+#bl_lab
+cleaned_dat <- c("elig", "bl_ls", "current_mh", "chany", "otany", "raany", "surgh")
 
 X <- left_join(cv, dem, by = c("SUBJID"))
 for (datf in cleaned_dat) {
@@ -123,13 +123,17 @@ NCT00460265 <- list(X_imp, W)
 OS <- data.frame(T = aeendpt$DTHDY / 30.4167, C = aeendpt$DTH) # primary outcome
 PFS <- data.frame(T = aeendpt$PFSDYLRA / 30.4167, C = aeendpt$PFSLR) # secondary outcome
 PFS[which(is.na(PFS$T)),1] <- OS[which(is.na(PFS$T)), 1]
-ORR <- data.frame(T = aeendpt$RDYLR / 30.4167, C = aeendpt$ROSLR) # secondary outcome
-ORR[which(is.na(ORR$T)),1] <- PFS[which(is.na(ORR$T)), 1]
+OR <- aeendpt$ROSLR # secondary outcome, changing from time until an event: CR or PR, is relative less informative than
 
-NCT00460265_outcomes <- c("OS", "PFS", "ORR")
+
+NCT00460265_outcomes <- c("OS", "PFS", "OR")
 
 for (outcome in NCT00460265_outcomes) {
+    if (outcome != "OR") {
     assign(paste0(outcome, "_Y_list"), do.call(impute_survival, list(T = get(outcome)[,1], C = get(outcome)[,2], X = X_imp)))
+    } else {
+        assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
+    }
 }
 
-save(NCT00460265, NCT00460265_outcomes, OS_Y_list, PFS_Y_list, ORR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00460265.RData")
+save(NCT00460265, NCT00460265_outcomes, OS_Y_list, PFS_Y_list, OR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00460265.RData")

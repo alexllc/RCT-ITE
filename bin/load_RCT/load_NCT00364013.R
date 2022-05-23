@@ -52,6 +52,7 @@ biom <- biomark[,c(1,seq(3, dim(biomark)[2], 2))]
 colnames(biom) <- c("SUBJID", biomarknm)
 biom$SUBJID[which(is.na(biom$SUBJID))] <- c(98, 99)
 biom <- biom %>% group_by(SUBJID) %>% fill(everything(), .direction = "downup") %>% slice(1)
+# biom[is.na(biom)] <- "Unknown"
 
 # only for checking missing proportion
 # for (col in colnames(biom)) {
@@ -60,10 +61,10 @@ biom <- biom %>% group_by(SUBJID) %>% fill(everything(), .direction = "downup") 
 
 #
 # Join and combine all baseline characteristics
-#
-cleaned_dat <- c("biom", "bl_ls")
+#"bl_lab", 
+cleaned_dat <- c("bl_ls")
 
-X <- left_join(corevar, bl_lab, by = c("SUBJID"))
+X <- left_join(corevar, biom, by = c("SUBJID"))
 for (datf in cleaned_dat) {
     X <- left_join(X, get(datf), by = c("SUBJID"))
     print(dim(unique(X)))

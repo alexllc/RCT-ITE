@@ -48,7 +48,9 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         #
         # R-stack
         #
-        mhat <- get_mhat(X_train = train_X, W_train = train_W, Y_train = train_Y, X_ho = ho_X, Y_ho = ho_Y)
+        if (!(imp_type_Y == "efronYn" | imp_type_Y == "efron"))
+            binary_Y <- TRUE
+        mhat <- get_mhat(X_train = train_X, W_train = train_W, Y_train = train_Y, X_ho = ho_X, Y_ho = ho_Y, binary_Y = binary_Y)
         
         #
         # Causal forest
