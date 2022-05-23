@@ -33,7 +33,7 @@ bl_ls <- filter(adls, VISIT == "Screening")
 bl_ls <- bl_ls[which(!is.na(bl_ls$SUBJID)),]
 bl_ls <- bl_ls %>% group_by(SUBJID) %>% group_by(SUBJID, VISITDY) %>% add_count(LSCAT, name = "LSCAT_count")  %>% group_by(SUBJID, LSCAT) %>% slice_max(VISITDY, n=1, with_ties = FALSE) %>% group_by(SUBJID, LSCAT) %>% mutate(avg_count = mean(LSCAT_count, na.rm = TRUE), avg_LSSLD = mean(LSSLD, na.rm = TRUE))
 
-bl_ls <- bl_ls %>% group_by(SUBJID, LSCAT) %>% slice(n=1) %>% pivot_wider(id_cols = SUBJID, names_from = LSCAT, values_from = c(avg_count, avg_LSSLD, LSLD)) %>% select(-all_of(c("avg_LSSLD_Non-target lesion", "LSLD_Non-target lesion")))
+bl_ls <- bl_ls %>% group_by(SUBJID, LSCAT) %>% dplyr::slice(n=1) %>% pivot_wider(id_cols = SUBJID, names_from = LSCAT, values_from = c(avg_count, avg_LSSLD, LSLD)) %>% select(-all_of(c("avg_LSSLD_Non-target lesion", "LSLD_Non-target lesion")))
 colnames(bl_ls) <- c("SUBJID", "non_target_count", "target_count", "target_LSSLD", "target_LSLD")
 bl_ls <- unique(bl_ls)
 
@@ -47,14 +47,14 @@ biomarknm <- gsub(" ", "_", biomarknm)
 biom <- biomark[,c(1,seq(3, dim(biomark)[2], 2))]
 colnames(biom) <- c("SUBJID", biomarknm)
 biom$SUBJID[which(is.na(biom$SUBJID))] <- c(98, 99)
-biom <- biom %>% group_by(SUBJID) %>% fill(everything(), .direction = "downup") %>% slice(1)
+biom <- biom %>% group_by(SUBJID) %>% fill(everything(), .direction = "downup") %>% dplyr::slice(1)
 
 #
 # Join and combine all baseline characteristics
-#
-cleaned_dat <- c("biom", "bl_ls")
+#"biom", 
+cleaned_dat <- c("bl_ls", "bl_lab")
 
-X <- left_join(corevar, bl_lab, by = c("SUBJID"))
+X <- left_join(corevar, biom, by = c("SUBJID"))
 for (datf in cleaned_dat) {
     X <- left_join(X, get(datf), by = c("SUBJID"))
     print(dim(unique(X)))
