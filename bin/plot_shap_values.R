@@ -113,6 +113,20 @@ write.csv(omnibus, file = paste0("./res/omnibus/", "omnibus_res.csv"), row.names
     }
 }
 
+# Plot AUC
+best_iter <- xgb_res$best_xgb_cvfit$evaluation_log
+
+library(pROC)
+plot(pROC::roc(response = tau[,1],
+               predictor = predict(mod, newdata = X),
+               levels=c(0, 1)), lwd=1.5)
+
+explainer = buildExplainer(xgb.model,xgb.train.data, type="binary", base_score = 0.5, trees_idx = NULL)
+pred.breakdown = explainPredictions(xgb.model, explainer, xgb.test.data)
+
+
+
+
 #############################################################################
 ## NCT00119613
 #############################################################################
