@@ -2,12 +2,12 @@ source("./bin/load_lib.R")
 # SHAP values
 suppressPackageStartupMessages({
 library("SHAPforxgboost"); library("ggplot2"); library("xgboost")
-library("data.table"); library("here"); library("svglite")
+library("data.table"); library("here"); library("svglite"); library(broom)
 })
 
 min_mse_method <- read.csv("./res/best_tau_estimators.csv")
-pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT00460265")
-trial_choice <- filter(min_mse_method, trial %in% pos_report)
+pos_report <- c("NCT00113763", "NCT00339183", "NCT00364013", "NCT00460265")
+trial_choice <- filter(min_mse_method, mse < 150 & trial %in% pos_report)
 colnames(trial_choice)[1] <- "trialID"
 
 
@@ -72,12 +72,11 @@ for (j in 1:dim(trial_choice)[1]) {
         }
     }
     lrt_df <- cbind(c("full model", colnames(X)), lrt_df)
-    colnames(lrt_df) <- c("Covariate", "DF", "LogLik", "diff", "statistic", "p-value")
-    write.csv(lrt_df, file = paste0("./res/omnibus/lrt/", trial, "_", outcome, "_", trial_best_method, "_LRT.csv"), row.names = FALSE)
-}
+    colnames(lrt_df) <- c("Covariate", "DF", "LogLik", "diff", "statistic", "p_value")
+    # write.csv(lrt_df, file = paste0("./res/omnibus/lrt/", trial, "_", outcome, "_", trial_best_method, "_LRT.csv"), row.names = FALSE)
 
-omnibus <- cbind(trial_choice[,c(1,4)], omnibus)
-write.csv(omnibus, file = paste0("./res/omnibus/", "omnibus_res.csv"), row.names = FALSE)
+    omnibus <- cbind(trial_choice[,c(1,4)], omnibus)
+    # write.csv(omnibus, file = paste0("./res/omnibus/", "omnibus_res.csv"), row.names = FALSE)
     # XGBoost to decompose effect modifier
     xgb_res <- try(readRDS(paste0("./dat/xgb_model/", trial, "_", outcome, "_", trial_best_method, "_xgb_model.rds"))) # generated from cvboost(x = X, y = tau[,1], objective="reg:squarederror")
     if (class(xgb_res) == "try-error")
@@ -108,7 +107,7 @@ write.csv(omnibus, file = paste0("./res/omnibus/", "omnibus_res.csv"), row.names
         svglite(paste0("./res/shap_plots/", trial, "_", outcome, "_", trial_best_method, "_multi-int_plot.svg"))
         fit_list <- lapply(sig_coeff, 
                         shap.plot.dependence, data_long = shap_long, color_feature = 'auto')
-        gridExtra::grid.arrange(grobs = fit_list, ncol = 3)
+        gridExtra::grid.arrange(grobs = fit_list, ncol = 3, nrow = 3)
         dev.off()
     }
 }

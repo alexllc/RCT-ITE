@@ -3,18 +3,18 @@ library(boot)
 
 Q <- 4
 min_mse_method <- read.csv("./res/best_tau_estimators.csv")
-pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT00460265")
+pos_report <- c("NCT00113763", "NCT00339183", "NCT00364013", "NCT00460265")
 trial_choice <- filter(min_mse_method, mse < 150 & trial %in% pos_report)
 hte_cstat <- read.csv("./cstat.csv")
 colnames(hte_cstat) <- c("trial", "outcome", "c_benefit")
-hte_cstat <- filter(hte_cstat, trial %in% pos_report)
+hte_cstat <- filter(hte_cstat, trial %in% trial_choice$trial)
 colnames(trial_choice)[1] <- "trialID"
 
 cstat_res <- data.frame(trial = character(), outcome = character(), cstat = numeric())
 
-for (j in 1:dim(trial_choice)[1]) {
+for (j in 9:dim(trial_choice)[1]) {
+    
     trial <- trial_choice[j,1]
-
     message(paste0(rep("=", 80)))
     message(paste0("Loading: ", trial))
     message(paste0(rep("=", 80)))
@@ -39,8 +39,15 @@ for (j in 1:dim(trial_choice)[1]) {
         imp_type_Y <- "efron"
     }
 
-    time_indep <- X
+    time_indep <- X[,colnames(X)!="offtrt_reason"]
     cox_df <- cbind(time_indep, W)
+
+    if (outcome == "RSP" | outcome == "ORR")
+        next
+
+    res.cox <- coxph(Surv(get(outcome)[["T"]], ceiling(get(outcome)[["C"]])) ~ . + W*(.), data = as.data.frame(cox_df))
+    write.csv(tidy(res.cox), file = paste0("./res/cox_models/", trial, "_", outcome, "_", tau_method, "_cox_summary.csv"), row.names = FALSE)
+}
 
     model <- glm(Y ~ .^2, data = as.data.frame(cox_df))
 
