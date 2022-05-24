@@ -7,10 +7,9 @@ source("./bin/load_lib.R")
 # trial_hte_ls <- c("NCT00113763")
 
 min_mse_method <- read.csv("./res/best_tau_estimators.csv")
-pos_report <- c("NCT00113763", "NCT00115765", "NCT00339183", "NCT00364013", "NCT00460265")
-trial_choice <- filter(min_mse_method, trial %in% pos_report)
+pos_report <- c("NCT00113763", "NCT00339183", "NCT00364013", "NCT00460265")
+trial_choice <- filter(min_mse_method, mse < 150 & trial %in% pos_report)
 colnames(trial_choice)[1] <- "trialID"
-trial_choice <- filter(trial_choice, mse > 300)
 
 for (j in 1:dim(trial_choice)[1]) {
 
