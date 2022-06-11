@@ -53,7 +53,7 @@ bl_ls <- filter(lesion, VISIT == "Screening")
 bl_ls <- bl_ls %>% replace_with_na_all(condition = ~.x %in% na_strings)
 bl_ls <- bl_ls %>% group_by(SUBJID) %>% group_by(SUBJID, ENRREFDY) %>% add_count(LSCAT, name = "LSCAT_count")  %>% group_by(SUBJID, LSCAT) %>% slice_max(ENRREFDY, n=1, with_ties = FALSE) %>% group_by(SUBJID, LSCAT) %>% mutate(avg_count = mean(LSCAT_count, na.rm = TRUE), avg_LSSLD = mean(LSSLD, na.rm = TRUE))
 
-bl_ls <- bl_ls %>% group_by(SUBJID, LSCAT) %>% slice(n=1) %>% pivot_wider(id_cols = SUBJID, names_from = LSCAT, values_from = c(avg_count, avg_LSSLD, LSLD)) %>% select(-all_of(c("avg_LSSLD_Non-target lesion", "LSLD_Non-target lesion", "avg_count_NA", "avg_LSSLD_NA", "LSLD_NA")))
+bl_ls <- bl_ls %>% group_by(SUBJID, LSCAT) %>% dplyr::slice(n=1) %>% pivot_wider(id_cols = SUBJID, names_from = LSCAT, values_from = c(avg_count, avg_LSSLD, LSLD)) %>% select(-all_of(c("avg_LSSLD_Non-target lesion", "LSLD_Non-target lesion", "avg_count_NA", "avg_LSSLD_NA", "LSLD_NA")))
 colnames(bl_ls) <- c("SUBJID", "non_target_count", "target_count", "target_LSSLD", "target_LSLD")
 
 
