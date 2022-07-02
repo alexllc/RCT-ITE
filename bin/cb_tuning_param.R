@@ -5,22 +5,14 @@ source("./bin/hyperparameter_tuning.R")
 source("./bin/mod_PTOforest.R")
 source("./bin/mod_causalboost.R")
 
-prob = 0.5
-Q = 4
-
-# CRC:"NCT00364013", "NCT00339183", "NCT00115765", "NCT00113763", "NCT00079274"
-# HNC: "NCT00460265"
-# BC: "NCT00041119"
-# SCLC: "NCT00003299", "NCT00119613", "NCT00041119"
-
-# done: "NCT00003299", "NCT00052910", "NCT00113763", "NCT00460265", "NCT00364013", "NCT00115765_oxa", "NCT00115765", "NCT00339183_mt_KRAS", ""
-# skip: "NCT00041119_length", "NCT00079274", ,"NCT00119613", ,
+prob <- 0.5
+Q <- 4
 
 
-# "NCT00364013", add RSP as outcome later
-#
-# 
-trial_ls <- c("NCT00364013", "NCT00460265", "NCT00041119_chemo", "NCT00041119_length")
+# Extract trial names from list of scripts
+trial_scripts <- list.files("./bin/load_RCT")
+trial_ls <- trial_scripts[grep("^load*", trial_scripts)]
+trial_ls <- unlist(lapply(strsplit(trial_ls, "_|\\."), function(X) X[2]))
 
 for (trial in trial_ls) {
     # For testing only:

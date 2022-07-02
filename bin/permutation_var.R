@@ -1,1 +1,0 @@
-# Script containing function to perform FRT for any test statistics

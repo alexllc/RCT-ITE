@@ -9,7 +9,7 @@
 
 file_path <- "./dat/PDS/Colorec_Amgen_2006_309_NCT00364013/csv/"
 
-datals <- c("adsl", "adlb", "adls", "adrsp", "biomark")
+datals <- c("adsl", "adlb", "adls", "adrsp", "biomark", "adae")
 
 # set to NA in R language for any type of missing or not otherwise specified entries
 for (sheet in datals) {
@@ -61,8 +61,8 @@ biom <- biom %>% group_by(SUBJID) %>% fill(everything(), .direction = "downup") 
 
 #
 # Join and combine all baseline characteristics
-#
-cleaned_dat <- c("bl_lab", "bl_ls")
+# 
+cleaned_dat <- c("bl_lab","bl_ls")
 
 X <- left_join(corevar, biom, by = c("SUBJID"))
 for (datf in cleaned_dat) {
@@ -80,6 +80,16 @@ message(c("Which patient(s) had different assigned vs actual treatment: ", which
 
 W <- adsl$ATRT[adsl$SUBJID %in% sel_SUBJID]
 W <- as.numeric(W == "Panitumumab + FOLFOX")
+
+# Transformation
+
+X_imp$AGR <- X_imp$Albumin / X_imp$Hemoglobin
+X_imp$PWR <- X_imp$Platelets / X_imp$White_Blood_Cells
+
+vif_rmv <- c("Albumin", "Hemoglobin", "Platelets", "White_Blood_Cells")
+
+X_imp <- dplyr::select(X_imp, -all_of(c(vif_rmv)))
+X_imp <- as.matrix(X_imp)
 
 NCT00364013 <- list(X_imp, W)
 
@@ -109,17 +119,29 @@ imp_df <- cbind(data.frame(SUBJID = imp_df$SUBJID), imp_outcome)
 
 OS <- data.frame(T = imp_df$DTHDY * 0.142857, C = imp_df$DTH) # primary outcome
 PFS <- data.frame(T = imp_df$PFSDYCR * 0.142857, C = imp_df$PFSCR) # secondary outcome
+RSP <- imp_df$rsp_avg
 
-NCT00364013_outcomes <- c("OS", "PFS", "RSP")
+# add AE
+toxicity <- adae %>% group_by(SUBJID) %>% mutate(total_ae_grade = sum(AESEVCD)) %>% select(all_of(c("SUBJID", "total_ae_grade"))) %>% unique()
+corevar <- left_join(corevar, toxicity, by = c("SUBJID"))
+AE <- corevar$total_ae_grade
+AE[which(is.na(AE))] <- 0
+
+NCT00364013_outcomes <- c("OS", "PFS", "RSP", "AE")
  
 
 for (outcome in NCT00364013_outcomes) {
-    if (outcome != "RSP") {
-        assign(paste0(outcome, "_Y_list"), do.call(impute_survival, list(T = get(outcome)[,1], C = ceiling(get(outcome)[,2]), X = X_imp)))
+    if (!(outcome == "AE" | outcome == "RSP")) {
+        sur_imp_res <- do.call(impute_survival, list(T = get(outcome)[,1], C = ceiling(get(outcome)[,2]), X = X_imp))
+        print(paste0("Infinite value check: ", outcome))
+        for (entry in sur_imp_res) {
+            print(which(is.infinite(entry)))
+        }
+        assign(paste0(outcome, "_Y_list"), sur_imp_res)
     } else {
-        RSP_Y_list <- list(imp_df$rsp_avg, NA, NA)
+        assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
     }
 }
 
-
-save(NCT00364013, NCT00364013_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00364013.RData")
+ 
+save(NCT00364013, NCT00364013_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00364013.RData")

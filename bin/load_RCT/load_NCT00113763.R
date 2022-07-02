@@ -3,7 +3,7 @@
 #' Secondary outcome: OS, Objective Tumor Response, Time to Treatment Failure, Duration of Stable Disease
 file_path <- "./dat/PDS/Colorec_Amgen_2004_310_NCT00113763/csv/"
 
-datals <- c("adsl", "adlb", "adls", "adrsp", "biomark")
+datals <- c("adsl", "adlb", "adls", "adrsp", "biomark", "adae")
 
 # set to NA in R language for any type of missing or not otherwise specified entries
 for (sheet in datals) {
@@ -70,6 +70,16 @@ message(c("Which patient(s) had different assigned vs actual treatment: ", which
 
 W <- adsl$ATRT[adsl$SUBJID %in% sel_SUBJID]
 W <- as.numeric(W == "panit. plus best supportive care")
+
+# Adjust for colinearity
+X_imp$PWR <- X_imp$Platelets / X_imp$White_Blood_Cells
+X_imp$AGR <- X_imp$Albumin / X_imp$Hemoglobin
+
+vif_rmv <- c("Platelets", "White_Blood_Cells", "target_count", "Albumin", "Hemoglobin")
+# According to RECIST criteria, radiologists are advised to take up to 10 traget lesions, so they're not the total number of lesions found in the target organ and are an indicator of the representability of the diameter sums
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2872013/
+X_imp <- dplyr::select(X_imp, -all_of(c(vif_rmv)))
+X_imp <- as.matrix(X_imp)
 #
 # Export trial data
 #
@@ -101,18 +111,30 @@ imp_df <- left_join(outcomes, rsp, by = c("SUBJID"))
 imp_outcome <- impute_df_missing(clin_df = as.data.frame(imp_df[,2:6]), save_ddt = FALSE)
 imp_df <- cbind(data.frame(SUBJID = imp_df$SUBJID), imp_outcome)
 
+# add AE
+toxicity <- adae %>% group_by(SUBJID) %>% mutate(total_ae_grade = sum(AESEVCD)) %>% select(all_of(c("SUBJID", "total_ae_grade"))) %>% unique()
+adsl <- left_join(adsl, toxicity, by = c("SUBJID"))
+
 OS <- data.frame(T = imp_df$DTHDYX / 30.417, C = imp_df$DTHX) # primary outcome
 PFS <- data.frame(T = imp_df$PFSDYCR / 30.417, C = imp_df$PFSCR) # secondary outcome
+RSP <- imp_df$rsp_avg
+AE <- adsl$total_ae_grade
+AE[which(is.na(AE))] <- 0
 
-NCT00113763_outcomes <- c("OS", "PFS", "RSP")
+NCT00113763_outcomes <- c("OS", "PFS", "RSP", "AE")
  
 
 for (outcome in NCT00113763_outcomes) {
-    if (outcome != "RSP") {
-        assign(paste0(outcome, "_Y_list"), do.call(impute_survival, list(T = get(outcome)[,1], C = ceiling(get(outcome)[,2]), X = X_imp)))
+    if (!(outcome == "AE" | outcome == "RSP")) {
+        sur_imp_res <- do.call(impute_survival, list(T = get(outcome)[,1], C = ceiling(get(outcome)[,2]), X = X_imp))
+        print(paste0("Infinite value check: ", outcome))
+        for (entry in sur_imp_res) {
+            print(which(is.infinite(entry)))
+        }
+        assign(paste0(outcome, "_Y_list"), sur_imp_res)
     } else {
-        RSP_Y_list <- list(imp_df$rsp_avg, NA, NA)
+        assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
     }
 }
 
-save(NCT00113763, NCT00113763_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00113763.RData")
+save(NCT00113763, NCT00113763_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00113763.RData")

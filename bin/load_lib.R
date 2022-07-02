@@ -15,7 +15,9 @@ library(rlearner); library(KRLS2); library(glmnet); library(nnls); library(caret
 library(hettx); library(formula.tools) ; # a bug in the package failed to import forumla.tools s.t. FRTCI cannot get variables from the formula
 
 # post hoc analysis
-library(aod); library(lmtest)
+library(aod); library(lmtest);
+
+library(tidyverse); library(Hmisc); library(corrplot)# for removing colinearity
 })
 
 source("./bin/impute_survival.R")
@@ -117,12 +119,12 @@ impute_df_missing  <- function(clin_df = NULL, save_ddt = FALSE) {
         return(imp_clin_df)
 }
 
-missing_too_much <- function(clin_df) {
+missing_too_much <- function(clin_df, missing_threshold = 0.3) {
 
     for(col in colnames(clin_df)) {
         missing_prop <- sum(is.na(clin_df[[col]])) / dim(clin_df)[1]
         zero_prop <- sum(clin_df[[col]] == 0, na.rm = TRUE) / dim(clin_df)[1]
-        if (missing_prop > 0.3) {
+        if (missing_prop > missing_threshold) {
             print(paste0("More than 30% missing data! Removing from df.: ", col))
             clin_df[[col]] <- NULL
         } else if(length(unique(na.omit(clin_df[[col]]))) == 1 | var(na.omit(clin_df[[col]]) == 0)) {
@@ -139,4 +141,30 @@ missing_too_much <- function(clin_df) {
 
 hdf <- function(df, n = 10) {
     print(head(as.data.frame(df), n = n))
+}
+
+
+tau_calibration <- function(tau.hat = NULL, Y = NULL, m.hat = NULL, W = NULL, W.hat = NULL, vcov.type = "HC3") {
+    ate <- mean(tau.hat)
+    DF <- data.frame(target = Y - m.hat, mean_pred = (W - W.hat) * ate, hetereogeneity = (W - W.hat) * tau.hat)
+
+    best.linear.predictor <-
+    lm(target ~ mean_pred + hetereogeneity + 0,
+      data = DF
+    )
+    blp.summary <- lmtest::coeftest(best.linear.predictor,
+        vcov = sandwich::vcovHC(best.linear.predictor, type = vcov.type)
+    )
+    attr(blp.summary, "method") <-
+        paste0("Best linear fit using ITE estimations (on held-out data)\n",
+        "as well as the ATE as regressors, along\n",
+        "with one-sided heteroskedasticity-robust ",
+        "(", vcov.type, ") SEs"
+        )
+    # convert to one-sided p-values
+    dimnames(blp.summary)[[2]][4] <- gsub("[|]", "", dimnames(blp.summary)[[2]][4])
+    blp.summary[, 4] <- ifelse(blp.summary[, 3] < 0, 1 - blp.summary[, 4] / 2, blp.summary[, 4] / 2)
+    print(blp.summary)
+
+    return(tidy(blp.summary))
 }

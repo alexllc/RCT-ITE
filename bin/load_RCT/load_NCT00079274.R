@@ -38,6 +38,7 @@ OS <- data.frame(T = outcomes$futime8 / 30.4167, C = outcomes$fustat8)
 DFS <- data.frame(T = outcomes$dfstime5 / 30.4167, C = outcomes$dfsstat5)
 PFS <- data.frame(T = outcomes$pgtime5 / 30.4167, C = outcomes$pgstat5)
 AE <- outcomes$total_ae_grade
+AE[which(is.na(AE))] <- 0
 
 NCT00079274_outcomes <- c("OS", "DFS", "PFS", "AE")
 for (outcome in NCT00079274_outcomes) {

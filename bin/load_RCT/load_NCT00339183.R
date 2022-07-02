@@ -6,7 +6,7 @@
 
 file_path <- "./dat/PDS/Colorec_Amgen_2006_263_NCT00339183/csv/"
 
-datals <- c("corevar", "a_eendpt", "a_endpt", "demo", "eligcrit", "lab", "lesion", "medhist", "chemotx", "radiotx", "othcantx", "surghist", "vitals_v", "disposit")
+datals <- c("corevar", "a_eendpt", "a_endpt", "ae", "demo", "eligcrit", "lab", "lesion", "chemotx", "othcantx", "surghist", "vitals_v", "disposit")
 
 # set to NA in R language for any type of missing or not otherwise specified entries
 # na strings loaded in the load_lib.R script
@@ -19,7 +19,7 @@ for (sheet in datals) {
 #
 # Core variables all patients have data in
 #
-cv <- dplyr::select(corevar, all_of(c("SUBJID", "AGE", "SEXCD", "RACCAT", "PRBEVCDR", "PRBEVCDM", "PROXACDR", "PROXACDM", "B_METANM", "LIVRONLY", "PRADJYN", "DPADJUV", "B_LDHYN", "B_LDH2YN", "B_LDHNM", "B_ECOGI", "DIAGTYPE", "TUMCAT", "KRAS")))
+cv <- dplyr::select(corevar, all_of(c("SUBJID", "AGE", "SEXCD", "RACCAT", "PRBEVCDR", "PRBEVCDM", "PROXACDR", "PROXACDM", "B_METANM", "LIVRONLY", "PRADJYN", "DPADJUV", "B_LDHYN", "B_LDH2YN", "B_LDHNM", "B_ECOGI", "DIAGTYPE", "KRAS")))
 
 #
 # Demographic variables
@@ -59,14 +59,14 @@ colnames(bl_ls) <- c("SUBJID", "non_target_count", "target_count", "target_LSSLD
 
 # Medical history (only number of unresolved body system entries included)
 #
-current_mh <- filter(medhist, MHSTAT == "Current or continuing") %>% replace_with_na_all(condition = ~.x %in% na_strings)
-current_mh <- current_mh %>% group_by(SUBJID) %>% add_count(MHBODSYS, name = "bodsys_count")
-current_mh <- dplyr::select(current_mh, all_of(c("SUBJID", "MHBODSYS", "bodsys_count")))
-current_mh <- unique(current_mh)
-current_mh <- spread(current_mh, MHBODSYS, bodsys_count) %>% dplyr::select(-"<NA>")
-current_mh[is.na(current_mh)] <- 0
-colnames(current_mh) <- gsub(" ", "_", colnames(current_mh))
-colnames(current_mh)[2:dim(current_mh)[2]] <- paste0("MH_", colnames(current_mh)[2:dim(current_mh)[2]])
+# current_mh <- filter(medhist, MHSTAT == "Current or continuing") %>% replace_with_na_all(condition = ~.x %in% na_strings)
+# current_mh <- current_mh %>% group_by(SUBJID) %>% add_count(MHBODSYS, name = "bodsys_count")
+# current_mh <- dplyr::select(current_mh, all_of(c("SUBJID", "MHBODSYS", "bodsys_count")))
+# current_mh <- unique(current_mh)
+# current_mh <- spread(current_mh, MHBODSYS, bodsys_count) %>% dplyr::select(-"<NA>")
+# current_mh[is.na(current_mh)] <- 0
+# colnames(current_mh) <- gsub(" ", "_", colnames(current_mh))
+# colnames(current_mh)[2:dim(current_mh)[2]] <- paste0("MH_", colnames(current_mh)[2:dim(current_mh)[2]])
 
 
 #
@@ -79,13 +79,13 @@ otany <- dplyr::select(othcantx, all_of(c("SUBJID", "OTANY")))
 otany <- unique(otany)
 
 # radiotherapy history
-raany <- radiotx %>% group_by(SUBJID) %>% add_count(RASITE, name = "rasite_count")
-raany <- dplyr::select(raany, all_of(c("SUBJID", "RASITE", "rasite_count")))
-raany <- unique(raany)
-raany <- spread(raany, RASITE, rasite_count) %>% dplyr::select(-"<NA>")
-raany[is.na(raany)] <- 0
-colnames(raany) <- gsub(" ", "_", colnames(raany))
-colnames(raany)[2:dim(raany)[2]] <- paste0("RA_", colnames(raany)[2:dim(raany)[2]])
+# raany <- radiotx %>% group_by(SUBJID) %>% add_count(RASITE, name = "rasite_count")
+# raany <- dplyr::select(raany, all_of(c("SUBJID", "RASITE", "rasite_count")))
+# raany <- unique(raany)
+# raany <- spread(raany, RASITE, rasite_count) %>% dplyr::select(-"<NA>")
+# raany[is.na(raany)] <- 0
+# colnames(raany) <- gsub(" ", "_", colnames(raany))
+# colnames(raany)[2:dim(raany)[2]] <- paste0("RA_", colnames(raany)[2:dim(raany)[2]])
 
 # Surgery history
 surgh <- surghist %>% group_by(SUBJID) %>% add_count(SXTYPE, name = "surgtype_count")
@@ -108,7 +108,7 @@ colnames(vtl) <- gsub(" ", "_", colnames(vtl))
 #
 # Join and combine all baseline characteristics
 #
-cleaned_dat <- c("bl_lab", "bl_ls", "elig", "current_mh", "chany", "raany", "otany", "surgh", "vtl")
+cleaned_dat <- c("bl_lab", "bl_ls", "elig", "chany", "otany", "surgh", "vtl")
 
 X <- left_join(cv, dem, by = c("SUBJID"))
 for (datf in cleaned_dat) {
@@ -122,6 +122,28 @@ X <- missing_too_much(X)
 X_imp <- impute_df_missing(clin_df = as.data.frame(X), save_ddt = FALSE)
 
 W <- as.numeric(corevar$ATRT == "Panitumumab + FOLFIRI")
+
+# address VIF issues
+# More than 30% missing data! Removing from df.: Blood_Urea_Nitrogen"
+
+X_imp$NLR <- X_imp$Absolute_Neutrophil_Count / X_imp$Lymphocytes
+X_imp$ASTALT <- X_imp$Aspartate_Amino_Transferase / X_imp$Alanine_Amino_Transferase
+X_imp$ASTLDH <- X_imp$Aspartate_Amino_Transferase / X_imp$B_LDHNM
+X_imp$ClNa <- X_imp$Chloride / X_imp$Sodium
+X_imp$AGR <- X_imp$Albumin / X_imp$Hemoglobin
+X_imp$PWR <- X_imp$Platelets / X_imp$Lymphocytes
+
+# Vitals
+X_imp$MBP <- X_imp$Diastolic_blood_pressure + 1/3 * (X_imp$Systolic_blood_pressure - X_imp$Diastolic_blood_pressure)
+# X_imp$BMI <- X_imp$B_WEIGHT / (X_imp$B_HEIGHT / 100)^2
+
+
+vif_rmv <- c("Absolute_Neutrophil_Count", "Lymphocytes", "Aspartate_Amino_Transferase", "Alanine_Amino_Transferase", "B_LDHNM", "B_LDHYN", "B_LDH2YN", "Lactate_Dehydrogenase", "Total_Neutrophils", "Lymphocytes", "Red_Blood_Cells", "Albumin", "Hemoglobin", "Chloride", "Sodium", "Diastolic_blood_pressure", "Systolic_blood_pressure", "B_WEIGHT", "Platelets")
+
+X_imp <- dplyr::select(X_imp, -all_of(c(vif_rmv)))
+X_imp <- as.matrix(X_imp)
+
+
 #
 # Export trial data
 #
@@ -138,23 +160,33 @@ OS[which(is.na(OS$T)), 1] <- endpt$PFUP[which(is.na(OS$T))] / 7 # convert days t
 
 
 # Ordinal categorical outcome
-ORR <- endpt$ROSLRCA # secondary outcome
+RSP <- endpt$ROSLRCA # secondary outcome
 rsps <- c("CR", "PR", "SD", "PD", "UE", "ND")
 i <- 1
 for (rsp_cat in rsps) {
-    ORR[ORR == rsp_cat] <- i
+    RSP[RSP == rsp_cat] <- i
     i <- i+1
 }
 
-NCT00339183_outcomes <- c("OS", "PFS", "ORR")
+# add AE
+toxicity <- ae %>% group_by(SUBJID) %>% mutate(total_ae_grade = sum(AESEVCD)) %>% select(all_of(c("SUBJID", "total_ae_grade"))) %>% unique()
+cv <- left_join(cv, toxicity, by = c("SUBJID"))
+AE <- cv$total_ae_grade
+AE[which(is.na(AE))] <- 0
+
+NCT00339183_outcomes <- c("OS", "PFS", "RSP", "AE")
 
 for (outcome in NCT00339183_outcomes) {
-    if (outcome != "ORR") {
-        assign(paste0(outcome, "_Y_list"), do.call(impute_survival, list(T = get(outcome)[,1], C = get(outcome)[,2], X = X_imp)))
+    if (outcome != "RSP" & outcome != "AE") {
+        sur_imp_res <- do.call(impute_survival, list(T = get(outcome)[,1], C = ceiling(get(outcome)[,2]), X = X_imp))
+        print(paste0("Infinite value check: ", outcome))
+        for (entry in sur_imp_res) {
+            print(which(is.infinite(entry)))
+        }
+        assign(paste0(outcome, "_Y_list"), sur_imp_res)
     } else {
-        ORR_Y_list <- list(ORR, NA, NA)
-
+        assign(paste0(outcome, "_Y_list"), list(get(outcome), NA, NA))
     }
 }
 
-save(NCT00339183, NCT00339183_outcomes, OS_Y_list, PFS_Y_list, ORR_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00339183.RData")
+save(NCT00339183, NCT00339183_outcomes, OS_Y_list, PFS_Y_list, RSP_Y_list, AE_Y_list, file = "./bin/load_RCT/RCT_obj/NCT00339183.RData")
