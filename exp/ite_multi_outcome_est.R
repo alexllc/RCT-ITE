@@ -110,39 +110,6 @@ perform_cb <- function(X, W, Y, outcome = NULL, Q = 4, prob = 0.5) {
     return (ptof_tau[,1])
 }
 
-# Function to determine whether to use boosting or LASSO to derive mhat
-get_mhat <- function(X_train, W_train, Y_train, X_ho, Y_ho, binary_Y = FALSE, newdat = TRUE) {
-
-    Y_boost <- cvboost(X_train, Y_train, objective = "reg:squarederror", nthread = 40) # non-binary outcome
-    Y_hat_boost <- predict(Y_boost, newx = X_ho)
-    
-    if (binary_Y) {
-        Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "binomial")
-    } else {
-        Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "gaussian")
-    }
-    Y_hat_lasso <- predict(Y_lasso, newx = X_ho)[,1]
-
-    # which method has a smaller CV error?
-    print("RMSE of m hat estimated by boosting vs LASSO:")
-    print(round(c(RMSE(Y_hat_boost, Y_ho), RMSE(Y_hat_lasso, Y_ho)), 4))
-    
-    if (!newdat) {
-        Y_hat_boost <- predict(Y_boost)
-        Y_hat_lasso <- predict(Y_lasso, newx = train_X)[,1]
-        if (RMSE(Y_hat_boost, Y_ho) < RMSE(Y_hat_lasso, Y_ho)) {
-            return(Y_hat_boost)
-        } else {
-            return(Y_hat_lasso)
-        }
-    } else {
-        if (RMSE(Y_hat_boost, Y_ho) < RMSE(Y_hat_lasso, Y_ho)) {
-            return(Y_hat_boost)
-        } else {
-            return(Y_hat_lasso)
-        }
-    }
-}
 
 
 # Extract trial names from list of scripts
@@ -150,7 +117,13 @@ trial_scripts <- list.files("./bin/load_RCT")
 trial_ls <- trial_scripts[grep("^load*", trial_scripts)]
 trial_ls <- unlist(lapply(strsplit(trial_ls, "_|\\."), function(X) X[2]))
 
-    for (trial in trial_ls) {
+# load linear R-loss values
+linear_loss <- read.csv("./res_linear/compare_rloss.csv")
+need_log <- filter(linear_loss, stack < 200) # even low R-loss trials will now be treated with log transformation
+trial_log <- unique(need_log$trial)
+# trial_log <- trial_log[5:length(trial_log)]
+
+    for (trial in trial_log) {
         message(paste0(rep("=", 80)))
         message(paste0("Running trial: ", trial))
         message(paste0(rep("=", 80)))
@@ -164,6 +137,9 @@ trial_ls <- unlist(lapply(strsplit(trial_ls, "_|\\."), function(X) X[2]))
         W <- get(trial)[[2]]
         outcome_list <- get(paste0(trial, "_outcomes"))
 
+        # only run outcomes that have higher than 200 R-losses
+        outcome_list <- need_log$outcome[need_log$trial == trial]
+
         for (outcome in outcome_list) {
 
             message(paste0("Processing outcome: ", outcome))
@@ -176,9 +152,21 @@ trial_ls <- unlist(lapply(strsplit(trial_ls, "_|\\."), function(X) X[2]))
             if (any(is.na(Y))) { # either does not have largest censroed outcome or it is not a time to event type outcome
                 Y <- as.numeric(Y_list[[1]])
                 imp_type_Y <- "efron"
-            }        
+            }
+
+            if(Y != "RSP") {
+                Y <- log(Y)
+                if (any(is.infinite(Y)))
+                    Y[which(is.infinite(Y))] <- 0
+            }
             
-            tau <- perform_rstack(Y = Y, X = X, W = W, trial_name = trial, outcome = outcome, imp_type_Y = imp_type_Y)
+            rmv_id <- check_lm_rmv(X = X, Y = Y)
+
+            X_rmvd <- X[-rmv_id,]
+            Y_rmvd <- Y[-rmv_id]
+            W_rmvd <- W[-rmv_id]
+
+            tau <- perform_rstack(Y = Y_rmvd, X = X_rmvd, W = W_rmvd, trial_name = trial, outcome = outcome, imp_type_Y = imp_type_Y, tuned_cb_param = FALSE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = FALSE, perform_cb = FALSE)
             write.csv(tau, paste0("./res/ite_tau_estimates/", trial, "_", imp_type_Y, "_", outcome, "_Rstack_tau_estimates.csv"), row.names = FALSE)
         } # outcome type
         

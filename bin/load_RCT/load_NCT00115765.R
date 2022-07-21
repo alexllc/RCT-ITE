@@ -153,6 +153,15 @@ for (rsp_cat in rsps) {
     i <- i+1
 }
 
+# rsp_freq <- table(RSP)
+# recist_cat <- names(table(RSP))
+
+# pdf("RECIST_plot.pdf")
+# barplot(table(RSP), names.arg= rsps, 
+#         main = "RECIST outcome in trial NCT00115765",col="skyblue",
+#         xlab = "RECITS categories", ylab = "Frequency")
+# dev.off()
+
 # add AE
 toxicity <- ae %>% group_by(SUBJID) %>% mutate(total_ae_grade = sum(AESEVCD)) %>% select(all_of(c("SUBJID", "total_ae_grade"))) %>% unique()
 cv <- left_join(cv, toxicity, by = c("SUBJID" = "SUBJID"))

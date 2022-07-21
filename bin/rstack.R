@@ -19,17 +19,19 @@ source("./bin/mod_causalboost.R")
 #' @param tune_ptof_param bool whether PTO forest parameters should be tuned or use default 
 #' @param perform_xb bool whether X-learner boosting should be performed. This is skipped in our analysis because it requires huge resources and time without the guarantee of good performance.
 
-perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outcome = NULL, imp_type_Y = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = FALSE, perform_cb = FALSE) {
+perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outcome = NULL, imp_type_Y = NULL, prob = 0.5, Q = 4, tuned_cb_param = FALSE, tuned_cm_param = TRUE, tune_ptof_param = TRUE, perform_xb = FALSE, perform_cb = FALSE, load_ID = FALSE) {
 
     available_sample <- 1:dim(X)[1]
-    cf_tau <- data.frame(ID = available_sample)
-    rownames(cf_tau) <- cf_tau$ID
+    total_sample <- 1:dim(X)[1]
+    cv_fold_tau <- data.frame(ID = available_sample)
+    rownames(cv_fold_tau) <- cv_fold_tau$ID
 
-    # Load previously generated training and testing IDs for reprodcibility
-    ho_matrix <- read.csv(paste0("./dat/cv_ho_ids/est_tau_", trial, "_holdout_id.csv"))
+    if (load_ID) {
+        # Load previously generated training and testing IDs for reprodcibility
+        ho_matrix <- read.csv(paste0("./dat/cv_ho_ids/est_tau_", trial, "_holdout_id.csv"))
+    }
 
     for (iter in 1:Q) {
-
         message(paste0(rep("=", 80)))
         message(paste0("CV iteration number: ", iter))
         message(paste0(rep("=", 80)))
@@ -38,11 +40,15 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         
         compare_rloss <- data.frame(b = numeric(), c = numeric(), alpha = numeric(), mse = numeric(), debiased_mse = numeric())
 
-        ho_id <- ho_matrix[,iter]
-        available_sample <- seq(1:dim(X)[1])
-        # holdout_sample <- sample(seq(1:dim(X)[1]), floor(dim(X)[1] / 4))
-        train_id <- available_sample[!available_sample %in% ho_id] 
-
+        if (iter != Q) {
+            ho_id <- sample(available_sample, floor(dim(X)[1] / Q))
+            # holdout_sample <- sample(seq(1:dim(X)[1]), floor(dim(X)[1] / 4))
+            train_id <- total_sample[!(total_sample %in% ho_id)]
+            available_sample <- available_sample[!(available_sample %in% ho_id)]
+        } else {
+            ho_id <- available_sample
+        }
+        
         train_X <- X[train_id,]
         train_Y <- Y[train_id]
         train_W <- W[train_id]
@@ -54,12 +60,12 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         #
         # R-stack
         #
-        if (!(imp_type_Y == "efronYn" | imp_type_Y == "efron")) {
+        if (length(levels(as.factor(Y))) == 2) {
             binary_Y <- TRUE
         } else {
             binary_Y <- FALSE
         }
-        Y_hat <- get_mhat(X_train = train_X, W_train = train_W, Y_train = train_Y, X_ho = ho_X, Y_ho = ho_Y, binary_Y = binary_Y)
+        Y_hat <- get_mhat(X_train = train_X, W_train = train_W, Y_train = train_Y, X_ho = ho_X, Y_ho = ho_Y, binary_Y = binary_Y, fast = TRUE)
         
         #
         # Causal forest
@@ -72,24 +78,30 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         cf_tau <- predict(cf, newdata = ho_X, estimate.variance =  TRUE)
         cf_tau_pred <- cf_tau$predictions
         cf_rep_count <- 0
-        while (var(cf_tau_pred) == 0 & cf_rep_count < 5) { # tuned forests sometimes give equal predictions, if that's the case, rebuild forest
+        while (var(cf_tau_pred) == 0 & cf_rep_count < 6) { # tuned forests sometimes give equal predictions, if that's the case, rebuild forest
             cf <- causal_forest(train_X, train_Y, train_W, num.trees = 100000, tune.parameters = "all")
             cf_tau <- predict(cf, newdata = ho_X, estimate.variance =  TRUE)
             cf_tau_pred <- cf_tau$predictions
             cf_rep_count <- cf_rep_count + 1
         }
 
-        if (var(cf_tau_pred$predictions) == 0 & cf_rep_count >= 5) {
+        if (var(cf_tau_pred) == 0 & cf_rep_count >= 5) {
             message("Failed to build a tuned CF with varying predictions.")
             cf_tau_pred <- rep(0, dim(ho_X)[1])
-            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
         } else {
             cf_mse <- mean((ho_Y - Y_hat - cf_tau_pred * (ho_W - prob))^2)
-            cf_rloss_res <- rloss(tau.pred = cf_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
+            cf_rloss_res <- try(rloss(tau.pred = cf_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
 
-            compare_rloss <- rbind(compare_rloss, c(cf_rloss_res$nnls_coeff, cf_rloss_res$mse, cf_rloss_res$mse_debiased))
+            if (class(cf_rloss_res) == "try-error") {
+                print("Cannot build this model.")
+                rl_tau <- rep(0, dim(ho_X)[1])
+                compare_rloss <- rbind(compare_rloss, rep(NA, 5))
+            } else {
+                compare_rloss <- rbind(compare_rloss, c(cf_rloss_res$nnls_coeff, cf_rloss_res$mse, cf_rloss_res$mse_debiased))
 
-            write.csv(cf_tau_pred, file = paste0("./res/indiv_model_tau/", trial, "_CF_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+                write.csv(cf_tau_pred, file = paste0("./res/indiv_model_tau/", trial, "_CF_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+            }
         }
 
         ##################################################
@@ -122,7 +134,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         } else {
             print("Skipping Causal Boosting.")
             cb_tau_pred <- rep(0, dim(ho_X)[1])
-            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
         }
 
 
@@ -133,7 +145,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         message(paste0("Building Performing causal MARS."))
         message(paste0(rep("=", 80)))
         if (tuned_cm_param | !file.exists( paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_", iter,"_cm_params.csv"))){
-            cm_cv_performance <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+            cm_cv_performance <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = FALSE)
             cm_param_used <- as.list(cm_cv_performance[1,1:3]) # choose smallest first
             cm <- try(do.call(causalMARS, append(list(x = train_X, tx = train_W, y = train_Y), cm_param_used)))
             tau_cm_pred <- try(predict(cm, ho_X))
@@ -147,7 +159,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
 
                 # re-evaluate parameters if too many of the tested parameters failed
                 if(param_counter > ceiling(dim(cm_param)[1] * 0.1)) { 
-                    cm_param <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = TRUE)
+                    cm_param <- find_cm_param(x = train_X, tx = train_W, y = train_Y, verbose = FALSE)
                     param_counter <- 0
                 }
             }
@@ -160,10 +172,18 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
             tau_cm_pred <- try(predict(cm, ho_X))
         }
 
-        cm_rloss_pred <- rloss(tau.pred = tau_cm_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
-        compare_rloss <- rbind(compare_rloss, c(cm_rloss_pred$nnls_coeff, cm_rloss_pred$mse, cm_rloss_pred$mse_debiased))
+        cm_rloss_pred <- try(rloss(tau.pred = tau_cm_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
 
-        write.csv(tau_cm_pred, file = paste0("./res/indiv_model_tau/", trial, "_CMARS_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+        if (class(cm_rloss_pred) == "try-error") {
+            print("Cannot build this model.")
+            cm_rloss_pred <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
+        } else {
+            compare_rloss <- rbind(compare_rloss, c(cm_rloss_pred$nnls_coeff, cm_rloss_pred$mse, cm_rloss_pred$mse_debiased))
+
+            write.csv(tau_cm_pred, file = paste0("./res/indiv_model_tau/", trial, "_CMARS_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+        }
+
 
         #
         # PTOForest
@@ -171,38 +191,61 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         message(paste0(rep("=", 80)))
         message(paste0("Building PTOForest."))
         message(paste0(rep("=", 80)))
+        ptof_rep_count <- 0
         rebuild_ptof <- TRUE
-        while (rebuild_ptof) {
+        while (rebuild_ptof & ptof_rep_count < 4) {
             if (tune_ptof_param) {
                 ptof_param_search <- find_ptof_param(x = train_X, y = train_Y, tx = train_W, validation_fold = 4, num_search_rounds = 50)
                 ptof_param <- ptof_param_search[1, 1:3]
                 ptof_param <- list(num.trees = ptof_param$num_trees, mtry = ptof_param$mtry, min.node.size = ptof_param$min_node_size)
-                ptof <- try(do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = FALSE, verbose = TRUE), ptof_param))) # sometimes PTO forest can fail to produce some estimates with holdout data
+                ptof <- try(do.call(PTOforest, append(list(x = train_X, y = train_Y, tx = train_W, postprocess = FALSE, verbose = FALSE), ptof_param))) # sometimes PTO forest can fail to produce some estimates with holdout data
             } else {
-                ptof <- try(PTOforest(x = train_X, tx = train_W, y = train_Y, verbose = TRUE))
+                ptof_param_search <- try(read.csv(paste0(paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_", iter, "_ptof_params_used.csv"))))
+
+                if (class(ptof_param_search) == "try-error") {
+                    message("Parameters not found.")
+                    rebuild_ptof <- FALSE
+                    ptof_rep_count <- 5 # double safe
+                } else {
+                    ptof_param <- ptof_param_search[1, 1:3]
+                    ptof_param <- list(num.trees = ptof_param$num_trees, mtry = ptof_param$mtry, min.node.size = ptof_param$min_node_size)
+
+                    ptof <- try(PTOforest(x = train_X, tx = train_W, y = train_Y, verbose = FALSE))
+                }
             }
 
-            ptof_tau_pred <- try(predict(ptof, ho_X))
-            ptof_rloss_pred <- try(rloss(tau.pred = ptof_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
-
-            if (any(is.na(ptof_tau_pred))) {
-                message("Out of bag NA predictions generated, will be refitting the model.")
-                rebuild_ptof <- any(is.na(ptof_tau_pred))
+            if (class(ptof_param_search) != "try-error") {
+                ptof_tau_pred <- try(predict(ptof, ho_X))
+                ptof_rloss_pred <- try(rloss(tau.pred = ptof_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
+                if (any(is.na(ptof_tau_pred))) {
+                    message("Out of bag NA predictions generated, will be refitting the model.")
+                    rebuild_ptof <- any(is.na(ptof_tau_pred))
+                } else {
+                    rebuild_ptof <- FALSE
+                }
+                ptof_rep_count <- ptof_rep_count + 1
             } else {
-                rebuild_ptof <- FALSE
+                message("Quitting PTOF while loop.")
             }
         }
-        write.csv(ptof_param_search, file = paste0(paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_", iter, "_ptof_params_used.csv")))
 
-        if (class(ptof) == "try-error" | class(ptof_tau_pred) == "try-error") {
-            print("Cannot build this model.")
-            ptof_tau_pred <- rep(0, dim(ho_X)[1])
-            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+        if (class(ptof_param_search) != "try-error") {
+            if (class(ptof) == "try-error" | class(ptof_tau_pred) == "try-error" | ptof_rep_count >= 3) {
+                print("Cannot build this model.")
+                ptof_tau_pred <- rep(0, dim(ho_X)[1])
+                compare_rloss <- rbind(compare_rloss, rep(NA, 5))
+            } else {
+                write.csv(ptof_param_search, file = paste0(paste0("./res/params/", trial, "_", imp_type_Y, "_", outcome, "_", iter, "_ptof_params_used.csv")))
+                compare_rloss <- rbind(compare_rloss, c(ptof_rloss_pred$nnls_coeff, ptof_rloss_pred$mse, ptof_rloss_pred$mse_debiased))
+            }
+
+            write.csv(ptof_tau_pred, file = paste0("./res/indiv_model_tau/", trial, "_PTOForest_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
         } else {
-            compare_rloss <- rbind(compare_rloss, c(ptof_rloss_pred$nnls_coeff, ptof_rloss_pred$mse, ptof_rloss_pred$mse_debiased))
-        }
+            message("Skipping PTOF model.")
+            ptof_tau_pred <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
 
-        write.csv(ptof_tau_pred, file = paste0("./res/indiv_model_tau/", trial, "_PTOForest_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+        }
 
 
         ##################################################
@@ -216,13 +259,13 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         message(paste0(rep("=", 80)))
 
         if (perform_xb) {
-            xb <- xboost(x = train_X, w = train_W, y = train_Y, ntrees_max= 200, num_search_rounds = 5, verbose = TRUE)
+            xb <- xboost(x = train_X, w = train_W, y = train_Y, ntrees_max= 200, num_search_rounds = 5, verbose = FALSE)
             xb_tau_pred <- predict(xb, ho_X)
             xb_rloss <- rloss(tau.pred = xb_tau_pred, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
             compare_rloss <- rbind(compare_rloss, c(xb_rloss$nnls_coeff, xb_rloss$mse, xb_rloss$mse_debiased))
         } else {
             xb_tau_pred <- rep(0, dim(ho_X)[1])
-            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
         }
         
         
@@ -234,10 +277,17 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         x_rf_tau <- EstimateCate(x_rf, ho_X)
 
         x_rf_rloss <- rloss(tau.pred = x_rf_tau, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
-        compare_rloss <- rbind(compare_rloss, c(x_rf_rloss$nnls_coeff, x_rf_rloss$mse, x_rf_rloss$mse_debiased))
 
-        write.csv(x_rf_tau, file = paste0("./res/indiv_model_tau/", trial, "_XRF_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+        if (class(x_rf_rloss) == "try-error") {
+            print("Cannot build this model.")
+            rl_tau <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
+        } else {
+            compare_rloss <- rbind(compare_rloss, c(x_rf_rloss$nnls_coeff, x_rf_rloss$mse, x_rf_rloss$mse_debiased))
 
+            write.csv(x_rf_tau, file = paste0("./res/indiv_model_tau/", trial, "_XRF_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+        }
+        
         #
         # X-learner of BART
         #
@@ -245,10 +295,17 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         x_bart <- X_BART(feat = train_X, tr = train_W, yobs = train_Y)
         x_bart_tau <- EstimateCate(x_bart, ho_X)
 
-        x_bart_rloss <- rloss(tau.pred = x_bart_tau, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
-        compare_rloss <- rbind(compare_rloss, c(x_bart_rloss$nnls_coeff, x_bart_rloss$mse, x_bart_rloss$mse_debiased))
+        x_bart_rloss <- try(rloss(tau.pred = x_bart_tau, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
 
-        write.csv(x_bart_tau, file = paste0("./res/indiv_model_tau/", trial, "_XBART_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)        
+        if (class(x_bart_rloss) == "try-error") {
+            print("Cannot build this model.")
+            rl_tau <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
+        } else {
+            compare_rloss <- rbind(compare_rloss, c(x_bart_rloss$nnls_coeff, x_bart_rloss$mse, x_bart_rloss$mse_debiased))
+
+            write.csv(x_bart_tau, file = paste0("./res/indiv_model_tau/", trial, "_XBART_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)
+        }      
 
 
         ##################################################
@@ -264,7 +321,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         
         ## NEED EXTRA M_HAT FOR THESE ALGORITHMS?
 
-        subtrain_Y_hat <- get_mhat(X_train = train_X, W_train = train_W, Y_train = train_Y, X_ho = ho_X, Y_ho = ho_Y, binary_Y = binary_Y, newdat = FALSE)
+        subtrain_Y_hat <- get_mhat(X_train = train_X, W_train = train_W, Y_train = train_Y, X_ho = ho_X, Y_ho = ho_Y, binary_Y = binary_Y, newdat = FALSE, fast = TRUE)
 
         rb <- try(rboost(train_X, train_W, train_Y, p_hat = prob, m_hat = subtrain_Y_hat, nthread = 40))
         while(class(rb) == "try-error") {
@@ -272,10 +329,18 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         }
         rb_tau <- predict(rb, ho_X)
 
-        rb_rloss <- rloss(tau.pred = rb_tau, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob)
-        compare_rloss <- rbind(compare_rloss, c(rb_rloss$nnls_coeff, rb_rloss$mse, rb_rloss$mse_debiased))
+        rb_rloss <- try(rloss(tau.pred = rb_tau, Y = ho_Y, W = ho_W, Y.hat = Y_hat, prob = prob))
 
-        write.csv(rb_tau, file = paste0("./res/indiv_model_tau/", trial, "_RBoosting_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)  
+        if (class(rb_rloss) == "try-error") {
+            print("Cannot build this model.")
+            rl_tau <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
+        } else {
+            compare_rloss <- rbind(compare_rloss, c(rb_rloss$nnls_coeff, rb_rloss$mse, rb_rloss$mse_debiased))
+            write.csv(rb_tau, file = paste0("./res/indiv_model_tau/", trial, "_RBoosting_", imp_type_Y, "_", outcome, "_", iter, "_tau.csv"), row.names = FALSE)  
+        }
+        
+
 
         #
         # R-learner of LASSO
@@ -291,7 +356,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         if (class(rl_rloss) == "try-error") {
             print("Cannot build this model.")
             rl_tau <- rep(0, dim(ho_X)[1])
-            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
         } else {
             compare_rloss <- rbind(compare_rloss, c(rl_rloss$nnls_coeff, rl_rloss$mse, rl_rloss$mse_debiased))
         }
@@ -313,7 +378,7 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         if (class(rs_rloss) == "try-error") {
             print("Cannot build this model.")
             rl_RS_tau <- rep(0, dim(ho_X)[1])
-            compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
         } else {
             compare_rloss <- rbind(compare_rloss, c(rs_rloss$nnls_coeff, rs_rloss$mse, rs_rloss$mse_debiased))
         }
@@ -347,12 +412,12 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
                 message(paste0("Calibration of: ", names(tau_ls)[name_counter]))
                 calib <- tau_calibration(tau.hat = tau_pred, Y = ho_Y, m.hat = Y_hat, W = ho_W, W.hat = 0.5)
                 write.csv(calib, file = paste0("./res/calib/", trial, "_", names(tau_ls)[name_counter], "_calib_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = FALSE)
-                name_counter <- name_counter + 1
 
                 # Correlation between each methods
                 tau_matrix <- cbind(tau_matrix, tau_pred)
 
             }
+                name_counter <- name_counter + 1
         }
 
         # Save correlations between methods
@@ -360,26 +425,25 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         colnames(tau_matrix) <- names(tau_ls)[sapply(tau_ls, function(X) sum(X) != 0 & var(X) != 0 & !any(is.na(X)))]
 
         corr_mat <- rcorr(as.matrix(tau_matrix))
-        write.csv(corr_mat$P, file = paste0("./res/corr_matrix/", trial, "_corr_matrix_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = FALSE)
+        write.csv(corr_mat$P, file = paste0("./res/corr_matrix/", trial, "_corr_matrix_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = TRUE)
 
 
         stack <- try(nnls(as.matrix(R_mat), RESP, constrained = c(FALSE, FALSE, rep(TRUE, tau_counter))))
-        last_stack <- stack
 
         if (class(stack) == "try-error") {
-            print("Cannot build this model, using coeff from the last fold.")
+            print("Cannot build this model, only using 0 as tau hat coeffs.")
             
-            stack <- last_stack
-            print(stack)
-
-            tau_stack <- stack[2]
+            tau_stack <- 0
             j <- 3
             for (i in 1:length(tau_ls)) {
                 if (sum(tau_ls[[i]]) != 0 & var(tau_ls[[i]]) != 0 & !any(is.na(tau_ls[[i]])) ) {
-                    tau_stack <- tau_stack + stack[j] * tau_ls[[i]]
+                    tau_stack <- tau_stack + 0 * tau_ls[[i]]
                     j <- j + 1
                 }
             }
+            
+            rstack_tau <- rep(0, dim(ho_X)[1])
+            compare_rloss <- rbind(compare_rloss, rep(NA, 5))
 
         } else {
             print("coefs")
@@ -401,17 +465,19 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
 
             if(class(tau_stack_rloss) == "try-error") {
                 rstack_tau <- rep(0, dim(ho_X)[1])
-                compare_rloss <- rbind(compare_rloss, rep(NA, 3))
+                compare_rloss <- rbind(compare_rloss, rep(NA, 5))
             } else {
                 compare_rloss <- rbind(compare_rloss, c(tau_stack_rloss$nnls_coeff, tau_stack_rloss$mse, tau_stack_rloss$mse_debiased))
             }
+            stack_calib <- tau_calibration(tau.hat = tau_stack, Y = ho_Y, m.hat = Y_hat, W = ho_W, W.hat = 0.5)
+            write.csv(stack_calib, file = paste0("./res/calib/", trial, "_Rstack_calib_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = FALSE)
+
+            names(stack) <- c("b", "c", colnames(tau_matrix))
+            write.csv(stack, file = paste0("./res/coeff/", trial, "_Rstack_coeffs_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = TRUE)
         }
-        stack_calib <- tau_calibration(tau.hat = tau_stack, Y = ho_Y, m.hat = Y_hat, W = ho_W, W.hat = 0.5)
-        write.csv(stack_calib, file = paste0("./res/calib/", trial, "_Rstack_calib_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = FALSE)
 
-        write.csv(stack, file = paste0("./res/coeff/", trial, "_Rstack_coeffs_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = FALSE)
 
-        cf_tau[ho_id,] <- tau_stack # save out of bag tau estimation to dataframe
+        cv_fold_tau[ho_id,] <- tau_stack # save out of bag tau estimation to dataframe
         # reformat comparison table
         method_list <- c("CF", "CBoost", "CMARS", "PTOForest", "XBoosting", "XRF", "XBART", "RBoosting", "RLasso", "RSlearner", "stack")
         rownames(compare_rloss) <- method_list
@@ -421,8 +487,8 @@ perform_rstack <- function(Y = NULL, X = NULL, W = NULL, trial_name = NULL, outc
         compare_rloss$maxmin_norm_mse <- compare_rloss$mse / (max(Y) - min(Y))
         compare_rloss$sd_norm_mse <- compare_rloss$mse / sd(Y)
 
-        write.csv(compare_rloss, paste0("./res/", trial, "_model_sel_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = TRUE)
+        write.csv(compare_rloss, paste0("./res/compare_rloss/", trial, "_model_sel_", imp_type_Y, "_", outcome, "_", iter, "_res.csv"), row.names = TRUE)
     } # end of Q-fold loop
-    return (cf_tau)
+    return (cv_fold_tau)
 }
 

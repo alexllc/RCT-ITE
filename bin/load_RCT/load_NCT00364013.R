@@ -71,7 +71,7 @@ for (datf in cleaned_dat) {
 }
 sel_SUBJID <- X$SUBJID
 X$SUBJID <- NULL
-X <- missing_too_much(X)
+X <- missing_too_much(X, missing_threshold = 0.5)
 X_imp <- impute_df_missing(clin_df = as.data.frame(X), save_ddt = FALSE)
 
 # check if assigned trt is the same as actual trt

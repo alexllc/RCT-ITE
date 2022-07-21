@@ -17,7 +17,9 @@ library(hettx); library(formula.tools) ; # a bug in the package failed to import
 # post hoc analysis
 library(aod); library(lmtest);
 
-library(tidyverse); library(Hmisc); library(corrplot)# for removing colinearity
+library(tidyverse); library(Hmisc); library(corrplot); # for removing colinearity
+
+library(broom); library(ggfortify)
 })
 
 source("./bin/impute_survival.R")
@@ -145,7 +147,7 @@ hdf <- function(df, n = 10) {
 
 
 tau_calibration <- function(tau.hat = NULL, Y = NULL, m.hat = NULL, W = NULL, W.hat = NULL, vcov.type = "HC3") {
-    ate <- mean(tau.hat)
+    ate <- mean(Y[which(W == 1)]) - mean(Y[which(W == 0)])
     DF <- data.frame(target = Y - m.hat, mean_pred = (W - W.hat) * ate, hetereogeneity = (W - W.hat) * tau.hat)
 
     best.linear.predictor <-
@@ -167,4 +169,80 @@ tau_calibration <- function(tau.hat = NULL, Y = NULL, m.hat = NULL, W = NULL, W.
     print(blp.summary)
 
     return(tidy(blp.summary))
+}
+
+# Function to determine whether to use boosting or LASSO to derive mhat
+get_mhat <- function(X_train, W_train, Y_train, X_ho, Y_ho, binary_Y = FALSE, newdat = TRUE, fast = FALSE) {
+
+    if (fast) {
+        if (binary_Y) {
+            Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "binomial")
+        } else {
+            Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "gaussian")
+        }
+        Y_hat_lasso <- predict(Y_lasso, newx = X_ho)[,1]
+        print(RMSE(Y_hat_lasso, Y_ho))
+        return(Y_hat_lasso)
+    } else {
+        Y_boost <- cvboost(X_train, Y_train, objective = "reg:squarederror", nthread = 40) # non-binary outcome
+        Y_hat_boost <- predict(Y_boost, newx = X_ho)
+        
+        if (binary_Y) {
+            Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "binomial")
+        } else {
+            Y_lasso <- cv.glmnet(X_train, Y_train, keep = TRUE, family = "gaussian")
+        }
+        Y_hat_lasso <- predict(Y_lasso, newx = X_ho)[,1]
+
+        # which method has a smaller CV error?
+        print("RMSE of m hat estimated by boosting vs LASSO:")
+        print(round(c(RMSE(Y_hat_boost, Y_ho), RMSE(Y_hat_lasso, Y_ho)), 4))
+        
+        if (!newdat) {
+            Y_hat_boost <- predict(Y_boost)
+            Y_hat_lasso <- predict(Y_lasso, newx = X_train)[,1]
+            if (RMSE(Y_hat_boost, Y_ho) < RMSE(Y_hat_lasso, Y_ho)) {
+                return(Y_hat_boost)
+            } else {
+                return(Y_hat_lasso)
+            }
+        } else {
+            if (RMSE(Y_hat_boost, Y_ho) < RMSE(Y_hat_lasso, Y_ho)) {
+                return(Y_hat_boost)
+            } else {
+                return(Y_hat_lasso)
+            }
+        }
+    }
+}
+
+check_lm_rmv <- function(X = NULL, Y = NULL) {
+    check_df <- data.frame(outcome = Y, trainX = X)
+    model <- lm(outcome ~ ., data = check_df)
+    print(vif_res <- car::vif(model))
+
+    model.diag.metrics <- augment(model)
+
+    model.diag.metrics <- model.diag.metrics %>% mutate(index = 1:nrow(model.diag.metrics)) 
+  
+    # Inspect the data
+    head(model.diag.metrics)
+
+    # outliers
+    outlier_id <- filter(model.diag.metrics, abs(.std.resid) >= 3)
+    outlier_id <- outlier_id$index
+
+    # high leverage
+    high_lev_thresh <- 2*(dim(X)[2] + 1)/ dim(X)[1]
+    highlev_id <- filter(model.diag.metrics, .hat > high_lev_thresh)
+    highlev_id <- highlev_id$index
+
+
+    # high influence
+    high_influ_thresh <- 4/(dim(X)[1] - dim(X)[2] - 1)
+    highinflu_id <- filter(model.diag.metrics, .cooksd > high_influ_thresh)
+    highinflu_id <- highinflu_id$index
+
+    rmv_id <- unique(c(outlier_id, highlev_id, highinflu_id))
+    return(rmv_id)
 }
